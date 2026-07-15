@@ -1,52 +1,82 @@
 # 📝 Smart Notes
 
-## Dashboard
+Sistema moderno de gerenciamento de notas desenvolvido com React, Vite e Node.js.
+
+---
+
+## 📸 Screenshots
+
+### Dashboard
 
 docs/dashboard.png
 
-## Visualização da Nota
+### Visualização da Nota
 
 docs/modal-nota.png
 
-Sistema moderno de gerenciamento de notas desenvolvido com React e Node.js.
+---
 
 ## ✨ Funcionalidades
 
-- ✅ Criar notas
-- ✅ Editar notas
-- ✅ Excluir notas
-- ✅ Restaurar notas
-- ✅ Exclusão definitiva
-- ✅ Favoritar notas
-- ✅ Fixar notas
-- ✅ Categorias
-- ✅ Pesquisa
-- ✅ Dashboard
-- ✅ Tema claro/escuro
+✅ Criar notas
 
-## 🛠️ Tecnologias
+✅ Editar notas
+
+✅ Excluir notas
+
+✅ Favoritar notas
+
+✅ Fixar notas
+
+✅ Categorias
+
+✅ Pesquisa inteligente
+
+✅ Dashboard
+
+✅ Tema claro/escuro
+
+✅ Lixeira
+
+✅ Exclusão definitiva
+
+✅ Restauração
+
+---
+
+## 🚀 Tecnologias
 
 ### Frontend
 
 - React
 - Vite
-- Tailwind CSS
 - Axios
+- Tailwind CSS
 
 ### Backend
 
 - Node.js
 - Express
 
+### Versionamento
+
+- Git
+- GitHub
+
+---
+
 ## 📂 Estrutura
 
 ```text
 frontend/
 backend/
+docs/
 README.md
 ```
 
-## 🚀 Como Executar
+---
+
+## ▶ Como Executar
 
 ### Backend
 
@@ -63,6 +93,34 @@ cd frontend
 npm install
 npm run dev
 ```
+
+---
+
+## 📌 Roadmap
+
+### v1.0 ✅
+
+- CRUD completo
+- Favoritos
+- Fixadas
+- Pesquisa
+- Dashboard
+- Lixeira
+
+### v1.1
+
+- Fechar modal ao clicar fora
+- Fechar modal com ESC
+
+### v1.2
+
+- SQLite
+
+### v2.0
+
+- Login de usuários
+
+---
 
 ## 👨‍💻 Autor
 
