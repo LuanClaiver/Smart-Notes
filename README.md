@@ -4,19 +4,15 @@ Sistema moderno de gerenciamento de notas desenvolvido com React, Vite e Node.js
 
 ---
 
-## 📸 Screenshots
+<h2>📸 Screenshots</h2>
 
-### Dashboard
+<h3>Dashboard</h3>
 
-<p align="center">
-  docs/dashboard.png width="900">
-</p>
+/dashboard.png" width="900">
 
-### Visualização da Nota
+<h3>Visualização da Nota</h3>
 
-<p align="center">
-  docs/modal-nota.png width="900">
-</p>
+docs/modal-nota.png
 
 ---
 
