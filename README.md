@@ -1,2 +1,130 @@
-# Smart-Notes
-Aplicação de notas desenvolvida em React e Node.js com suporte a categorias, favoritos, pesquisa, fixação e lixeira.
+# 📝 Smart Notes
+
+Sistema moderno de gerenciamento de notas desenvolvido com React, Vite e Node.js.
+
+---
+
+## 📸 Screenshots
+
+### Dashboard
+
+docs/dashboard.png
+
+### Visualização da Nota
+
+docs/modal-nota.png
+
+---
+
+## ✨ Funcionalidades
+
+✅ Criar notas
+
+✅ Editar notas
+
+✅ Excluir notas
+
+✅ Favoritar notas
+
+✅ Fixar notas
+
+✅ Categorias
+
+✅ Pesquisa inteligente
+
+✅ Dashboard
+
+✅ Tema claro/escuro
+
+✅ Lixeira
+
+✅ Exclusão definitiva
+
+✅ Restauração
+
+---
+
+## 🚀 Tecnologias
+
+### Frontend
+
+- React
+- Vite
+- Axios
+- Tailwind CSS
+
+### Backend
+
+- Node.js
+- Express
+
+### Versionamento
+
+- Git
+- GitHub
+
+---
+
+## 📂 Estrutura
+
+```text
+frontend/
+backend/
+docs/
+README.md
+```
+
+---
+
+## ▶ Como Executar
+
+### Backend
+
+```bash
+cd backend
+npm install
+npm start
+```
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+---
+
+## 📌 Roadmap
+
+### v1.0 ✅
+
+- CRUD completo
+- Favoritos
+- Fixadas
+- Pesquisa
+- Dashboard
+- Lixeira
+
+### v1.1
+
+- Fechar modal ao clicar fora
+- Fechar modal com ESC
+
+### v1.2
+
+- SQLite
+
+### v2.0
+
+- Login de usuários
+
+---
+
+## 👨‍💻 Autor
+
+Luan Claiver Carvalho Filgueira
+
+GitHub:
+https://github.com/LuanClaiver
