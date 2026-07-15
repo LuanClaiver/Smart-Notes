@@ -4,15 +4,15 @@ Sistema moderno de gerenciamento de notas desenvolvido com React, Vite e Node.js
 
 ---
 
-<h2>📸 Screenshots</h2>
+## 📸 Screenshots
 
-<h3>Dashboard</h3>
+### Dashboard
 
-![/dashboard.png" width="900">](https://raw.githubusercontent.com/LuanClaiver/Smart-Notes/main/docs/dashboard.png)
+https://raw.githubusercontent.com/LuanClaiver/Smart-Notes/main/docs/dashboard.png
 
-<h3>Visualização da Nota</h3>
+### Visualização da Nota
 
-docs/modal-nota.png
+https://raw.githubusercontent.com/LuanClaiver/Smart-Notes/main/docs/modal-nota.png
 
 ---
 
