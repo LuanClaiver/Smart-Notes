@@ -1,14 +1,14 @@
 # 📝 Smart Notes
 
-## Teste
-
-docs/dashboard.png
-
 Sistema moderno de gerenciamento de notas desenvolvido com React, Vite e Node.js.
 
 ---
 
 ## 📸 Screenshots
+
+# Teste
+
+![Dashboard](docs/Dashboard.png)
 
 ### Dashboard
 
