@@ -8,7 +8,7 @@ Sistema moderno de gerenciamento de notas desenvolvido com React, Vite e Node.js
 
 <h3>Dashboard</h3>
 
-/dashboard.png" width="900">
+![/dashboard.png" width="900">](https://raw.githubusercontent.com/LuanClaiver/Smart-Notes/main/docs/dashboard.png)
 
 <h3>Visualização da Nota</h3>
 
