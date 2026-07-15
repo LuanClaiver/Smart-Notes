@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+
 function ModalNota({
   notaSelecionada,
   setNotaSelecionada,
@@ -10,11 +12,39 @@ function ModalNota({
   restaurarNota,
   excluirDefinitivamente
 }) {
+  useEffect(() => {
+
+  function fecharComEsc(event) {
+
+    if (event.key === "Escape") {
+      setNotaSelecionada(null);
+    }
+
+  }
+
+  document.addEventListener(
+    "keydown",
+    fecharComEsc
+  );
+
+  return () => {
+
+    document.removeEventListener(
+      "keydown",
+      fecharComEsc
+    );
+
+  };
+
+}, [setNotaSelecionada]);
 
   if (!notaSelecionada) return null;
 
   return (
     <div
+      onClick={() =>
+        setNotaSelecionada(null)
+      }
       className="
         fixed
         inset-0
@@ -26,6 +56,7 @@ function ModalNota({
       "
     >
       <div
+        onClick={(e) => e.stopPropagation()}
         className={`
           w-full
           max-w-3xl

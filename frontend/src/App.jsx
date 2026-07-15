@@ -15,6 +15,8 @@ import NotaCard from "./components/NotaCard";
 import Sidebar from "./components/Sidebar";
 import Dashboard from "./components/Dashboard";
 import FormularioNota from "./components/FormularioNota";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 function App() {
   const [titulo, setTitulo] = useState("");
@@ -84,6 +86,7 @@ function App() {
     setCategoria("Atendimentos");
 
     carregarNotas();
+    toast.success("✅ Nota criada com sucesso!");
   }
 
   async function editarNota(id) {
@@ -102,6 +105,7 @@ function App() {
     setEditandoId(null);
 
     carregarNotas();
+    toast.info("✏️ Nota atualizada!");
     }
 
     function solicitarExclusao(nota) {
@@ -118,30 +122,59 @@ function App() {
     setNotaParaExcluir(null);
 
     carregarNotas();
+    toast.warning("🗑️ Nota enviada para a lixeira!");
     }
 
   async function alternarFavorita(id) {
     await alternarFavoritaService(id);
+    const nota = notas.find(
+      (n) => n.id === id
+    );
 
     carregarNotas();
+    if (nota.favorita) {
+      toast.info(
+        "💔 Removida dos favoritos"
+      );
+    } else {
+      toast.success(
+        "❤️ Adicionada aos favoritos"
+      );
+    }
   }
 
   
   async function alternarFixada(id) {
   await alternarFixadaService(id);
+  const nota = notas.find(
+    (n) => n.id === id
+  );
 
   carregarNotas();
+  if (nota.fixada) {
+    toast.info(
+      "📍 Nota desafixada"
+    );
+  } else {
+    toast.success(
+      "📌 Nota fixada"
+    );
+  }
 }
 
   async function restaurarNota(id) {
    await restaurarNotaService(id);
 
     carregarNotas();
+    toast.success("♻️ Nota restaurada!");
   }
   async function excluirDefinitivamente(id) {
     await excluirDefinitivamenteService(id);
 
     carregarNotas();
+    toast.error(
+  "❌ Nota excluída definitivamente!"
+);
   }
     function limparPesquisa() {
     setPesquisa("");
@@ -484,6 +517,11 @@ function App() {
   temaEscuro={temaEscuro}
   setModalExcluir={setModalExcluir}
   excluirNota={excluirNota}
+/>
+<ToastContainer
+  position="top-right"
+  autoClose={3000}
+  theme={temaEscuro ? "dark" : "light"}
 />
 
     </div>

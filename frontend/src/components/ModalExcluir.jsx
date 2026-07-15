@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+
 function ModalExcluir({
   modalExcluir,
   notaParaExcluir,
@@ -5,13 +7,41 @@ function ModalExcluir({
   setModalExcluir,
   excluirNota
 }) {
+  useEffect(() => {
+
+  function fecharComEsc(event) {
+
+    if (event.key === "Escape") {
+      setModalExcluir(false);
+    }
+
+  }
+
+  document.addEventListener(
+    "keydown",
+    fecharComEsc
+  );
+
+  return () => {
+
+    document.removeEventListener(
+      "keydown",
+      fecharComEsc
+    );
+
+  };
+
+}, [setModalExcluir]);
   if (!modalExcluir) return null;
 
   return (
     <div
-      className="
-        fixed
-        inset-0
+  onClick={() =>
+    setModalExcluir(false)
+    }
+    className="
+      fixed
+      inset-0
         bg-black/60
         flex
         items-center
@@ -20,6 +50,7 @@ function ModalExcluir({
       "
     >
       <div
+        onClick={(e) => e.stopPropagation()}
         className={`
           p-5
           rounded-2xl
@@ -53,6 +84,7 @@ function ModalExcluir({
               px-4
               py-2
               rounded-lg
+              cursor-pointer
             "
           >
             Cancelar
@@ -65,6 +97,7 @@ function ModalExcluir({
               px-4
               py-2
               rounded-lg
+              cursor-pointer
             "
           >
             Excluir
