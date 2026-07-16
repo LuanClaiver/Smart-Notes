@@ -126,31 +126,58 @@ function App() {
     }
 
   async function alternarFavorita(id) {
-    await alternarFavoritaService(id);
-    const nota = notas.find(
-      (n) => n.id === id
-    );
 
-    carregarNotas();
-    if (nota.favorita) {
-      toast.info(
-        "💔 Removida dos favoritos"
-      );
-    } else {
-      toast.success(
-        "❤️ Adicionada aos favoritos"
-      );
-    }
-  }
-
-  
-  async function alternarFixada(id) {
-  await alternarFixadaService(id);
   const nota = notas.find(
     (n) => n.id === id
   );
 
-  carregarNotas();
+  await alternarFavoritaService(id);
+
+  await carregarNotas();
+
+  if (
+    notaSelecionada &&
+    notaSelecionada.id === id
+  ) {
+    setNotaSelecionada({
+      ...notaSelecionada,
+      favorita: !notaSelecionada.favorita
+    });
+  }
+
+  if (nota.favorita) {
+    toast.info(
+      "💔 Removida dos favoritos"
+    );
+  } else {
+    toast.success(
+      "❤️ Adicionada aos favoritos"
+    );
+  }
+
+}
+
+  
+  async function alternarFixada(id) {
+
+  const nota = notas.find(
+    (n) => n.id === id
+  );
+
+  await alternarFixadaService(id);
+
+  await carregarNotas();
+
+  if (
+    notaSelecionada &&
+    notaSelecionada.id === id
+  ) {
+    setNotaSelecionada({
+      ...notaSelecionada,
+      fixada: !notaSelecionada.fixada
+    });
+  }
+
   if (nota.fixada) {
     toast.info(
       "📍 Nota desafixada"
@@ -160,6 +187,7 @@ function App() {
       "📌 Nota fixada"
     );
   }
+
 }
 
   async function restaurarNota(id) {
@@ -277,7 +305,7 @@ function App() {
 
   return (
     <div
-        className={`min-h-screen p-8 ${
+        className={`min-h-screen p-4 md:p-8 ${
           temaEscuro
             ? "bg-gray-900 text-white"
             : "bg-gray-100 text-black"
@@ -285,11 +313,25 @@ function App() {
       >
       
 
-      <div className="max-w-7xl mx-auto flex gap-6">
+      <div className="max-w-7xl mx-auto flex flex-col md:flex-row gap-6">
 
+        {
+        menuAberto && (
+          <div
+            onClick={() => setMenuAberto(false)}
+            className="
+              fixed
+              inset-0
+              bg-black/50
+              z-40
+            "
+          />
+        )
+      }
         <Sidebar
           limparPesquisa={limparPesquisa}
           menuAberto={menuAberto}
+          setMenuAberto={setMenuAberto}
           temaEscuro={temaEscuro}
           categoriaSelecionada={categoriaSelecionada}
           setCategoriaSelecionada={setCategoriaSelecionada}
@@ -303,29 +345,32 @@ function App() {
 
           <div className="flex items-center gap-3 mb-6">
 
-            <button
-              onClick={() =>
-                setMenuAberto(!menuAberto)
-              }
-              className="
-                bg-blue-600
-                hover:bg-blue-700
-                px-4
-                py-2
-                rounded-lg
-                text-xl
-                cursor-pointer
-                transition-all
-              "
-            >
-              {menuAberto ? "✖" : "☰"}
-            </button>
+            {
+              !menuAberto && (
+                <button
+                  onClick={() =>
+                    setMenuAberto(true)
+                  }
+                  className="
+                    bg-blue-600
+                    hover:bg-blue-700
+                    px-4
+                    py-2
+                    rounded-lg
+                    text-xl
+                    cursor-pointer
+                    transition-all
+                  "
+                >
+                  ☰
+                </button>
+              )
+            }
 
             <div className="flex items-center gap-3">
 
             {/* TÍTULO PRINCIPAL */}
-            <h1 className="text-4xl font-bold">
-
+            <h1 className="text-2xl md:text-4xl font-bold">
               {mostrarLixeira
                 ? `🗑️ Lixeira (${
                     notas.filter(
@@ -477,7 +522,7 @@ function App() {
             criarNota={criarNota}
           />
 
-          <div className="grid md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
 
             {/* LISTA DE NOTAS */}
             {notasFiltradas.map((nota) => (

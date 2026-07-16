@@ -11,7 +11,7 @@ function Dashboard({
   limparPesquisa
 }) {
   return (
-    <div className="grid grid-cols-4 gap-4 mb-6">
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
 
       {/* DASHBOARD - CARD TOTAL */}
       <div

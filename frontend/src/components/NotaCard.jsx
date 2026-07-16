@@ -11,6 +11,8 @@ function NotaCard({
         setNotaSelecionada(nota)
       }
       className={`
+        w-full
+        overflow-hidden
         p-5
         rounded-2xl
         border
@@ -29,9 +31,11 @@ function NotaCard({
     >
 
       {/* CABEÇALHO DA NOTA */}
-      <div className="flex justify-between items-center mb-2">
+      {/*Ajuste para evitar que o icone de favorito empurre o titulo*/}
+      <div className="flex justify-between items-start mb-2 gap-2">
 
-        <h2 className="text-xl font-bold">
+        {/*Isso evita que títulos longos quebrem o layout do celular ou tela pequena.*/}
+        <h2 className="text-lg md:text-xl font-bold break-all">
           📄 {nota.titulo}
         </h2>
 
@@ -71,7 +75,7 @@ function NotaCard({
 
       {/* RESUMO DA NOTA */}
       <p
-        className={`mb-4 break-words ${
+        className={`mb-4 break-all ${
           temaEscuro
             ? "text-gray-300"
             : "text-gray-700"

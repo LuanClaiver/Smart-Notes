@@ -7,4 +7,11 @@ export default defineConfig({
     react(),
     tailwindcss()
   ],
+
+  server: {
+    host: true,
+    allowedHosts: [
+      "gcadti395958n"
+    ]
+  }
 });

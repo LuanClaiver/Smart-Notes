@@ -1,5 +1,8 @@
+import { useEffect } from "react";
+
 function Sidebar({
   menuAberto,
+  setMenuAberto,
   temaEscuro,
   categoriaSelecionada,
   setCategoriaSelecionada,
@@ -10,21 +13,85 @@ function Sidebar({
   limparPesquisa
 }) {
 
-  if (!menuAberto) return null;
+  useEffect(() => {
+
+  function fecharComEsc(event) {
+
+    if (
+      event.key === "Escape" &&
+      menuAberto
+    ) {
+      setMenuAberto(false);
+    }
+
+  }
+
+  document.addEventListener(
+    "keydown",
+    fecharComEsc
+  );
+
+  return () => {
+
+    document.removeEventListener(
+      "keydown",
+      fecharComEsc
+    );
+
+  };
+
+}, [menuAberto, setMenuAberto]);
 
   return (
-    <div
-      className={`w-64 p-3 rounded-2xl h-fit ${
+  <div
+    className={`
+      fixed
+      top-0
+      left-0
+      h-full
+      w-72
+      p-4
+      z-50
+      transition-all
+      duration-300
+      shadow-2xl
+      ${
+        menuAberto
+          ? "translate-x-0"
+          : "-translate-x-full"
+      }
+      ${
         temaEscuro
           ? "bg-gray-800"
-          : "bg-white shadow-lg"
-      }`}
-    >
+          : "bg-white"
+      }
+    `}
+  >
 
       {/* SIDEBAR - TÍTULO */}
-      <h2 className="text-xl font-bold mb-4">
+      <div className="flex items-center gap-3 mb-6">
+
+      <button
+        onClick={() => setMenuAberto(false)}
+        className="
+          bg-blue-600
+          hover:bg-blue-700
+          px-4
+          py-2
+          rounded-lg
+          text-xl
+          cursor-pointer
+          transition-all
+        "
+      >
+        ✖
+      </button>
+
+      <h2 className="text-xl font-bold">
         📂 Categorias
       </h2>
+
+    </div>
 
       {[
         "Todas",

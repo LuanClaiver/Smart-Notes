@@ -167,22 +167,26 @@ function ModalNota({
   ) : (
     <>
       <button
-        onClick={() => {
-          alternarFavorita(
-            notaSelecionada.id
-          );
-        }}
-        className="
-          bg-pink-600
-          hover:bg-pink-700
-          px-3
-          py-2
-          rounded-lg
-          cursor-pointer
-        "
-      >
-        ❤️ Favoritar
-      </button>
+  onClick={() => {
+    alternarFavorita(
+      notaSelecionada.id
+    );
+  }}
+  className="
+    bg-pink-600
+    hover:bg-pink-700
+    px-3
+    py-2
+    rounded-lg
+    cursor-pointer
+  "
+>
+  {
+    notaSelecionada.favorita
+      ? "💔 Remover Favorita"
+      : "❤️ Favoritar"
+  }
+</button>
 
       <button
         onClick={() => {
@@ -199,7 +203,11 @@ function ModalNota({
           cursor-pointer
         "
       >
-        📌 Fixar
+        {
+  notaSelecionada.fixada
+    ? "📍 Desafixar"
+    : "📌 Fixar"
+}
       </button>
 
       <button
