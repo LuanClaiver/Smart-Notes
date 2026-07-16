@@ -84,7 +84,7 @@ function Sidebar({
           transition-all
         "
       >
-        ✖
+        {menuAberto ? "✕" : "☰"}
       </button>
 
       <h2 className="text-xl font-bold">

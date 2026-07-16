@@ -7,7 +7,7 @@ function ModalNota({
   tempoDecorrido,
   alternarFavorita,
   alternarFixada,
-  iniciarEdicao,
+  abrirModalEditar,
   solicitarExclusao,
   restaurarNota,
   excluirDefinitivamente
@@ -212,9 +212,9 @@ function ModalNota({
 
       <button
         onClick={() => {
-          iniciarEdicao(
-            notaSelecionada
-          );
+          abrirModalEditar(
+          notaSelecionada
+        );
 
           setNotaSelecionada(null);
         }}

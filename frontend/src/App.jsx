@@ -17,6 +17,8 @@ import Dashboard from "./components/Dashboard";
 import FormularioNota from "./components/FormularioNota";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import ModalEditar
+from "./components/ModalEditar";
 
 function App() {
   const [titulo, setTitulo] = useState("");
@@ -55,6 +57,11 @@ function App() {
       ? JSON.parse(temaSalvo)
       : true;
   });
+  const [notaEditando, setNotaEditando] =
+  useState(null);
+
+  const [modalEditar, setModalEditar] =
+  useState(false);
 
   const [modalExcluir, setModalExcluir] =
   useState(false);
@@ -89,23 +96,33 @@ function App() {
     toast.success("✅ Nota criada com sucesso!");
   }
 
-  async function editarNota(id) {
-    await editarNotaService(
-    id,
-    {
+      async function editarNota(
+      id,
       titulo,
       conteudo,
       categoria
+    ) {
+
+      await editarNotaService(
+        id,
+        {
+          titulo,
+          conteudo,
+          categoria
+        }
+      );
+
+      await carregarNotas();
+
+      toast.info(
+        "✏️ Nota atualizada!"
+      );
+
     }
-  );
+    function abrirModalEditar(nota) {
+      setNotaEditando(nota);
+      setModalEditar(true);
 
-    setTitulo("");
-    setConteudo("");
-    setCategoria("Atendimentos");
-    setEditandoId(null);
-
-    carregarNotas();
-    toast.info("✏️ Nota atualizada!");
     }
 
     function solicitarExclusao(nota) {
@@ -307,8 +324,9 @@ function App() {
     <div
         className={`min-h-screen p-4 md:p-8 ${
           temaEscuro
-            ? "bg-gray-900 text-white"
-            : "bg-gray-100 text-black"
+          // Isso muda as cores 900 é o background
+          ? "bg-gray-900 text-white" 
+          : "bg-gray-50 text-black"
         }`}
       >
       
@@ -346,25 +364,23 @@ function App() {
           <div className="flex items-center gap-3 mb-6">
 
             {
-              !menuAberto && (
-                <button
-                  onClick={() =>
-                    setMenuAberto(true)
-                  }
-                  className="
-                    bg-blue-600
-                    hover:bg-blue-700
-                    px-4
-                    py-2
-                    rounded-lg
-                    text-xl
-                    cursor-pointer
-                    transition-all
-                  "
-                >
-                  ☰
-                </button>
-              )
+              <button
+                onClick={() =>
+                  setMenuAberto(!menuAberto)
+                }
+                className="
+                  bg-blue-600
+                  hover:bg-blue-700
+                  px-4
+                  py-2
+                  rounded-lg
+                  text-xl
+                  cursor-pointer
+                  transition-all
+                "
+              >
+                ☰
+              </button>
             }
 
             <div className="flex items-center gap-3">
@@ -549,11 +565,21 @@ function App() {
       tempoDecorrido={tempoDecorrido}
       alternarFavorita={alternarFavorita}
       alternarFixada={alternarFixada}
-      iniciarEdicao={iniciarEdicao}
+      abrirModalEditar={abrirModalEditar}
       solicitarExclusao={solicitarExclusao}
       restaurarNota={restaurarNota}
       excluirDefinitivamente={excluirDefinitivamente}
     />
+    {
+      modalEditar && (
+        <ModalEditar
+          nota={notaEditando}
+          temaEscuro={temaEscuro}
+          setModalEditar={setModalEditar}
+          editarNota={editarNota}
+        />
+      )
+    }
 
 {/* MODAL DE EXCLUSÃO */}
 <ModalExcluir

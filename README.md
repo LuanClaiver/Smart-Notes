@@ -57,6 +57,8 @@ Sistema moderno de gerenciamento de notas desenvolvido com React, Vite e Node.js
 
 - Node.js
 - Express
+- SQLite
+- Better SQLite3
 
 ### Versionamento
 
