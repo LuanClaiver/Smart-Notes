@@ -95,7 +95,7 @@ function Configuracoes({ temaEscuro, usuario, onBancoImportado }) {
 
           <div className="flex flex-wrap gap-3 mt-5">
             <button disabled={carregando} onClick={() => executar(criarBackupService, "Backup criado com sucesso.")} className="smart-action-button">Fazer backup agora</button>
-            <button disabled={carregando} onClick={() => executar(exportarBancoService, "Banco exportado para Downloads.")} className="smart-action-button">Exportar banco</button>
+            <button disabled={carregando} onClick={() => executar(exportarBancoService, (dados) => `Banco exportado: ${dados.nome} (${Math.max(1, Math.round(dados.tamanho / 1024))} KB).`)} className="smart-action-button">Exportar banco</button>
             <button disabled={carregando} onClick={() => inputRef.current?.click()} className="smart-action-button">Importar banco</button>
             <input ref={inputRef} type="file" accept=".db,application/vnd.sqlite3,application/octet-stream" onChange={importar} className="hidden" />
           </div>

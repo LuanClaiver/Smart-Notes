@@ -180,7 +180,7 @@ function LoginPage({ temaEscuro, setTemaEscuro, onAutenticado }) {
                       className={`w-full px-4 py-3 rounded-xl border outline-none transition-all ${
                         temaEscuro ? "bg-slate-800 border-slate-700 focus:border-emerald-500" : "bg-white border-slate-300 focus:border-emerald-500"
                       }`}
-                      placeholder="Ex.: luan.claiver"
+                      placeholder="Ex.: seu.usuario"
                       autoComplete="username"
                     />
                   </div>

@@ -6,6 +6,9 @@ function Sidebar({
   temaEscuro,
   setTemaEscuro,
   abaAtiva,
+  telaAtual,
+  telaAdminUsuarios,
+  telaConfiguracoes,
   selecionarAba,
   voltarParaInicio,
   categoriaSelecionada,
@@ -122,6 +125,21 @@ function Sidebar({
     }).length;
   }
 
+  const paginaInicialAtiva = telaAtual === "inicio" && !telaAdminUsuarios && !telaConfiguracoes;
+  const paginaUsuariosAtiva = Boolean(telaAdminUsuarios);
+  const paginaConfiguracoesAtiva = Boolean(telaConfiguracoes);
+
+  function classeMenuPrincipal(ativo, destaque = "emerald") {
+    if (ativo) {
+      return destaque === "amber"
+        ? "bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/20 ring-2 ring-amber-300/40"
+        : "bg-emerald-600 text-white shadow-lg shadow-emerald-600/20 ring-2 ring-emerald-300/30";
+    }
+    return temaEscuro
+      ? "bg-slate-900 hover:bg-slate-800 text-white"
+      : "bg-slate-100 hover:bg-slate-200 text-slate-950";
+  }
+
   const abas = [
     { id: "minhas", texto: "Minhas notas", icone: "🗂️", total: notas.filter((nota) => nota.minhaNota && !nota.naLixeira).length },
     { id: "compartilhadas", texto: "Comunidade", icone: "🤝", total: notas.filter((nota) => nota.compartilhada && !nota.naLixeira).length },
@@ -172,9 +190,10 @@ function Sidebar({
           voltarParaInicio();
           setMenuAberto(false);
         }}
-        className={`w-full p-3 rounded-2xl cursor-pointer transition-all font-black mb-5 ${temaEscuro ? "bg-slate-900 hover:bg-slate-800 text-white" : "bg-slate-100 hover:bg-slate-200 text-slate-950"}`}
+        aria-current={paginaInicialAtiva ? "page" : undefined}
+        className={`w-full p-3 rounded-2xl cursor-pointer transition-all font-black mb-5 ${classeMenuPrincipal(paginaInicialAtiva)}`}
       >
-        🏠 Tela inicial
+        🏠 Tela inicial {paginaInicialAtiva && <span className="float-right">●</span>}
       </button>
 
       {usuario?.admin && (
@@ -187,9 +206,10 @@ function Sidebar({
             setSubcategoriaSelecionada("");
             setMenuAberto(false);
           }}
-          className="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 p-3 rounded-2xl cursor-pointer transition-all font-black mb-3"
+          aria-current={paginaUsuariosAtiva ? "page" : undefined}
+          className={`w-full p-3 rounded-2xl cursor-pointer transition-all font-black mb-3 ${classeMenuPrincipal(paginaUsuariosAtiva, "amber")}`}
         >
-          👑 Gerenciar usuários
+          👑 Gerenciar usuários {paginaUsuariosAtiva && <span className="float-right">●</span>}
         </button>
       )}
 
@@ -200,9 +220,10 @@ function Sidebar({
           setTelaConfiguracoes(true);
           setMenuAberto(false);
         }}
-        className={`w-full p-3 rounded-2xl cursor-pointer transition-all font-black mb-5 ${temaEscuro ? "bg-slate-900 hover:bg-slate-800 text-white" : "bg-slate-100 hover:bg-slate-200 text-slate-950"}`}
+        aria-current={paginaConfiguracoesAtiva ? "page" : undefined}
+        className={`w-full p-3 rounded-2xl cursor-pointer transition-all font-black mb-5 ${classeMenuPrincipal(paginaConfiguracoesAtiva)}`}
       >
-        ⚙️ Configurações
+        ⚙️ Configurações {paginaConfiguracoesAtiva && <span className="float-right">●</span>}
       </button>
 
       <h3 className="text-sm uppercase tracking-[0.18em] text-slate-400 font-black mb-3">Abas</h3>
@@ -212,8 +233,8 @@ function Sidebar({
             key={aba.id}
             onClick={() => abrirAba(aba.id)}
             className={`w-full text-left p-3 rounded-2xl cursor-pointer transition-all hover:-translate-y-0.5 ${
-              abaAtiva === aba.id
-                ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/20"
+              telaAtual === "notas" && !telaAdminUsuarios && !telaConfiguracoes && abaAtiva === aba.id
+                ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/20 ring-2 ring-emerald-300/30"
                 : temaEscuro ? "bg-slate-900 hover:bg-slate-800 text-white" : "bg-slate-100 hover:bg-slate-200 text-slate-950"
             }`}
           >
@@ -225,8 +246,8 @@ function Sidebar({
         <button
           onClick={() => abrirAba("lixeira")}
           className={`w-full text-left px-3 py-2 rounded-2xl cursor-pointer transition-all text-sm ${
-            abaAtiva === "lixeira"
-              ? "bg-red-600 text-white shadow-lg shadow-red-600/20"
+            telaAtual === "notas" && !telaAdminUsuarios && !telaConfiguracoes && abaAtiva === "lixeira"
+              ? "bg-red-600 text-white shadow-lg shadow-red-600/20 ring-2 ring-red-300/30"
               : temaEscuro ? "bg-slate-900/70 hover:bg-slate-800 text-slate-300" : "bg-slate-100 hover:bg-slate-200 text-slate-700"
           }`}
         >
@@ -246,8 +267,8 @@ function Sidebar({
           <div key={categoria.id || categoria.nome} className="mb-2">
             <div
               className={`flex items-center gap-2 rounded-2xl transition-all ${
-                categoriaSelecionada === categoria.nome && !subcategoriaSelecionada
-                  ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/20"
+                telaAtual === "notas" && !telaAdminUsuarios && !telaConfiguracoes && categoriaSelecionada === categoria.nome && !subcategoriaSelecionada
+                  ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/20 ring-2 ring-emerald-300/30"
                   : temaEscuro ? "bg-slate-900 hover:bg-slate-800 text-white" : "bg-slate-100 hover:bg-slate-200 text-slate-950"
               }`}
             >
@@ -284,8 +305,8 @@ function Sidebar({
                     key={subcategoria.id}
                     onClick={() => selecionarCategoria(categoria.nome, subcategoria.nome)}
                     className={`w-full min-w-0 text-left px-3 py-2 rounded-xl text-sm transition-all ${
-                      subcategoriaSelecionada === subcategoria.nome && categoriaSelecionada === categoria.nome
-                        ? "bg-cyan-600 text-white"
+                      telaAtual === "notas" && !telaAdminUsuarios && !telaConfiguracoes && subcategoriaSelecionada === subcategoria.nome && categoriaSelecionada === categoria.nome
+                        ? "bg-cyan-600 text-white ring-2 ring-cyan-300/30"
                         : temaEscuro ? "bg-slate-900/70 hover:bg-slate-800 text-slate-300" : "bg-slate-100 hover:bg-slate-200 text-slate-700"
                     }`}
                   >
@@ -347,8 +368,8 @@ function Sidebar({
                             type="button"
                             onClick={() => selecionarCategoria(categoria.nome, subcategoria.nome)}
                             className={`flex-1 min-w-0 text-left px-3 py-2 rounded-xl text-sm font-bold transition-all ${
-                              subcategoriaSelecionada === subcategoria.nome && categoriaSelecionada === categoria.nome
-                                ? "bg-cyan-600 text-white"
+                              telaAtual === "notas" && !telaAdminUsuarios && !telaConfiguracoes && subcategoriaSelecionada === subcategoria.nome && categoriaSelecionada === categoria.nome
+                                ? "bg-cyan-600 text-white ring-2 ring-cyan-300/30"
                                 : temaEscuro ? "text-slate-300 hover:bg-slate-800" : "text-slate-700 hover:bg-slate-100"
                             }`}
                           >

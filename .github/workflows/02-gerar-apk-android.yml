@@ -1,4 +1,4 @@
-name: 02 - Gerar APK Android
+name: 02 - Gerar APK Android - Smart Notes 1.4.2
 
 on:
   workflow_dispatch:
@@ -14,14 +14,16 @@ permissions:
 
 jobs:
   gerar-apk:
+    name: Gerar Smart-Notes.apk
     runs-on: windows-latest
     timeout-minutes: 60
+
     defaults:
       run:
         shell: pwsh
 
     steps:
-      - name: Baixar codigo
+      - name: Baixar codigo do repositorio
         uses: actions/checkout@v4
 
       - name: Preparar Node.js
@@ -35,26 +37,43 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      - name: Validar projeto
+      - name: Validar estrutura do aplicativo
         run: |
-          if (-not (Test-Path 'mobile-app/package.json')) { throw 'mobile-app/package.json nao foi encontrado.' }
-          if (-not (Test-Path 'mobile-app/capacitor.config.ts')) { throw 'mobile-app/capacitor.config.ts nao foi encontrado.' }
+          $obrigatorios = @(
+            'mobile-app/package.json',
+            'mobile-app/capacitor.config.ts',
+            'mobile-app/src/main.jsx',
+            'scripts/mobile/Aplicar-Ajustes-Android.ps1'
+          )
+          $ausentes = $obrigatorios | Where-Object { -not (Test-Path $_) }
+          if ($ausentes.Count -gt 0) {
+            throw "Arquivos ausentes: $($ausentes -join ', ')"
+          }
 
-      - name: Instalar dependencias
+      - name: Instalar dependencias sem usar lock antigo
         working-directory: mobile-app
-        run: npm install --no-audit --no-fund
+        run: |
+          # Versoes anteriores do repositorio continham um package-lock incompatível.
+          # A compilacao mobile usa somente o package.json desta versao.
+          if (Test-Path 'node_modules') { Remove-Item 'node_modules' -Recurse -Force }
+          if (Test-Path 'package-lock.json') { Remove-Item 'package-lock.json' -Force }
+          npm install --no-audit --no-fund --package-lock=false
+          npm ls --depth=0
 
-      - name: Compilar interface
+      - name: Compilar interface mobile
         working-directory: mobile-app
         run: npm run build
 
-      - name: Criar e sincronizar Android
+      - name: Criar e sincronizar projeto Android
         working-directory: mobile-app
         run: |
           if (-not (Test-Path 'android/gradlew.bat')) {
             npx cap add android
           }
           npx cap sync android
+          if (-not (Test-Path 'android/gradlew.bat')) {
+            throw 'O Capacitor nao criou o projeto Android.'
+          }
 
       - name: Aplicar ajustes Android
         run: ./scripts/mobile/Aplicar-Ajustes-Android.ps1 "$pwd/mobile-app/android"
@@ -106,7 +125,7 @@ jobs:
             $env:ANDROID_KEYSTORE_FILE = "$pwd/smart-notes-release.jks"
             .\gradlew.bat assembleRelease --no-daemon --stacktrace
             $source = 'app/build/outputs/apk/release/app-release.apk'
-            $tipo = 'assinado'
+            $tipo = 'assinado-release'
           } else {
             Write-Host 'Segredos de assinatura ausentes: gerando APK de teste (debug).' -ForegroundColor Yellow
             .\gradlew.bat assembleDebug --no-daemon --stacktrace
@@ -114,17 +133,21 @@ jobs:
             $tipo = 'teste-debug'
           }
 
-          if (-not (Test-Path $source)) { throw "APK nao encontrado em $source" }
-          New-Item -ItemType Directory -Path ../../APK -Force | Out-Null
-          Copy-Item $source '../../APK/Smart-Notes.apk' -Force
-          $hash = (Get-FileHash '../../APK/Smart-Notes.apk' -Algorithm SHA256).Hash
-          "Tipo: $tipo`nSHA256: $hash" | Set-Content '../../APK/Smart-Notes-SHA256.txt'
+          if (-not (Test-Path $source)) {
+            throw "O Gradle terminou, mas o APK nao foi encontrado em: $source"
+          }
+
+          $destino = Join-Path $env:GITHUB_WORKSPACE 'APK'
+          New-Item -ItemType Directory -Path $destino -Force | Out-Null
+          Copy-Item $source (Join-Path $destino 'Smart-Notes.apk') -Force
+          $hash = (Get-FileHash (Join-Path $destino 'Smart-Notes.apk') -Algorithm SHA256).Hash
+          "Versao: 1.4.2`nTipo: $tipo`nSHA256: $hash" | Set-Content (Join-Path $destino 'Smart-Notes-SHA256.txt')
           "APK gerado no modo: $tipo" >> $env:GITHUB_STEP_SUMMARY
 
-      - name: Disponibilizar APK
+      - name: Disponibilizar APK para download
         uses: actions/upload-artifact@v4
         with:
-          name: Smart-Notes-APK
+          name: Smart-Notes-APK-1.4.2
           path: APK/
           if-no-files-found: error
           retention-days: 30

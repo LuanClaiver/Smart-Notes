@@ -30,7 +30,7 @@ if (Test-Path $buildGradle) {
   }
 
   $packageFile = Join-Path (Split-Path $AndroidPath -Parent) 'package.json'
-  $versionName = '1.4.1'
+  $versionName = '1.4.2'
   if (Test-Path $packageFile) {
     try {
       $package = Get-Content $packageFile -Raw | ConvertFrom-Json

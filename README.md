@@ -1,4 +1,4 @@
-# Smart Notes 1.4.1
+# Smart Notes 1.4.2
 
 Aplicativo de notas com versão para computador e aplicativo Android.
 

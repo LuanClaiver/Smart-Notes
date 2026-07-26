@@ -62,7 +62,7 @@ if not errorlevel 1 (
   exit /b 0
 )
 
-set "MENSAGEM=Smart Notes 1.4.1 - desktop, mobile e APK"
+set "MENSAGEM=Smart Notes 1.4.2 - exportacao, navegacao e APK corrigidos"
 set /p "PERSONALIZADA=Descricao do envio [Enter para usar a padrao]: "
 if defined PERSONALIZADA set "MENSAGEM=!PERSONALIZADA!"
 

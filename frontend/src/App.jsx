@@ -614,6 +614,9 @@ function App() {
           temaEscuro={temaEscuro}
           setTemaEscuro={setTemaEscuro}
           abaAtiva={abaAtiva}
+          telaAtual={telaAtual}
+          telaAdminUsuarios={telaAdminUsuarios}
+          telaConfiguracoes={telaConfiguracoes}
           selecionarAba={selecionarAba}
           voltarParaInicio={voltarParaInicio}
           categoriaSelecionada={categoriaSelecionada}
@@ -755,7 +758,9 @@ function App() {
       <BottomNav
         abaAtiva={abaAtiva}
         telaAtual={telaAtual}
+        telaAdminUsuarios={telaAdminUsuarios}
         telaConfiguracoes={telaConfiguracoes}
+        menuAberto={menuAberto}
         onInicio={voltarParaInicio}
         onAba={selecionarAba}
         onConfiguracoes={abrirConfiguracoes}

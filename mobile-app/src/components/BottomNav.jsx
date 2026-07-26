@@ -1,10 +1,10 @@
-function BottomNav({ abaAtiva, telaAtual, telaConfiguracoes, onInicio, onAba, onConfiguracoes, onMenu }) {
+function BottomNav({ abaAtiva, telaAtual, telaAdminUsuarios, telaConfiguracoes, menuAberto, onInicio, onAba, onConfiguracoes, onMenu }) {
   const itens = [
-    { id: "inicio", icone: "⌂", texto: "Início", acao: onInicio, ativo: telaAtual === "inicio" && !telaConfiguracoes },
+    { id: "inicio", icone: "⌂", texto: "Início", acao: onInicio, ativo: telaAtual === "inicio" && !telaAdminUsuarios && !telaConfiguracoes },
     { id: "minhas", icone: "▣", texto: "Minhas", acao: () => onAba("minhas"), ativo: telaAtual === "notas" && abaAtiva === "minhas" },
     { id: "comunidade", icone: "◉", texto: "Públicas", acao: () => onAba("compartilhadas"), ativo: telaAtual === "notas" && abaAtiva === "compartilhadas" },
     { id: "config", icone: "⚙", texto: "Ajustes", acao: onConfiguracoes, ativo: telaConfiguracoes },
-    { id: "mais", icone: "☰", texto: "Mais", acao: onMenu, ativo: false }
+    { id: "mais", icone: "☰", texto: "Mais", acao: onMenu, ativo: Boolean(menuAberto || telaAdminUsuarios) }
   ];
 
   return (

@@ -8,7 +8,7 @@ const db = require("./database");
 
 const app = express();
 
-app.use(cors());
+app.use(cors({ exposedHeaders: ["Content-Disposition", "Content-Length"] }));
 app.use(express.json({ limit: "40mb" }));
 
 function gerarHashSenha(senha, salt = randomBytes(16).toString("hex")) {
@@ -327,7 +327,7 @@ app.get("/status", (req, res) => {
   res.json({
     online: true,
     app: "Smart Notes",
-    versao: "1.4.1"
+    versao: "1.4.2"
   });
 });
 
@@ -1321,12 +1321,29 @@ app.post("/backups", autenticar, exigirAdmin, async (req, res) => {
 app.get("/backups/export-database", autenticar, exigirAdmin, async (req, res) => {
   const nome = nomeArquivoData("smart-notes");
   const temporario = path.join(BACKUPS_DIR, `.export-${process.pid}-${Date.now()}.db`);
+
   try {
     await criarCopiaBanco(temporario);
-    res.download(temporario, nome, () => fs.rmSync(temporario, { force: true }));
+
+    const conteudo = fs.readFileSync(temporario);
+    if (conteudo.length < 100 || conteudo.subarray(0, 16).toString("utf8") !== "SQLite format 3\u0000") {
+      throw new Error("A cópia gerada não é um banco SQLite válido.");
+    }
+
+    fs.rmSync(temporario, { force: true });
+
+    res.status(200);
+    res.setHeader("Content-Type", "application/vnd.sqlite3");
+    res.setHeader("Content-Disposition", `attachment; filename="${nome}"; filename*=UTF-8''${encodeURIComponent(nome)}`);
+    res.setHeader("Content-Length", String(conteudo.length));
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.send(conteudo);
   } catch (error) {
     fs.rmSync(temporario, { force: true });
-    res.status(500).json({ erro: error.message || "Não foi possível exportar o banco" });
+    if (!res.headersSent) {
+      res.status(500).json({ erro: error.message || "Não foi possível exportar o banco" });
+    }
   }
 });
 
@@ -1388,5 +1405,5 @@ criarBackupDiarioSeNecessario().catch((error) => {
 });
 
 app.listen(3000, "0.0.0.0", () => {
-  console.log("Smart Notes 1.4.1 rodando em http://localhost:3000");
+  console.log("Smart Notes 1.4.2 rodando em http://localhost:3000");
 });

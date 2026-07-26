@@ -636,10 +636,18 @@ async function salvarArquivo(conteudo, nome, compartilhar = true) {
   const link = document.createElement("a");
   link.href = url;
   link.download = nome;
+  link.rel = "noopener";
+  link.style.position = "fixed";
+  link.style.left = "-9999px";
   document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
+  try {
+    link.click();
+  } finally {
+    window.setTimeout(() => {
+      link.remove();
+      URL.revokeObjectURL(url);
+    }, 2000);
+  }
   return "Downloads";
 }
 
