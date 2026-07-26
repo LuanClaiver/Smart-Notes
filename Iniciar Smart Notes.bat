@@ -3,10 +3,10 @@ setlocal EnableExtensions EnableDelayedExpansion
 chcp 65001 >nul
 cd /d "%~dp0"
 if errorlevel 1 goto :erro
-title Smart Notes 1.4.2
+title Smart Notes 1.4.3
 
 echo ================================================
-echo              SMART NOTES 1.4.2
+echo              SMART NOTES 1.4.3
 echo ================================================
 echo.
 

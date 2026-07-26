@@ -1,48 +1,80 @@
-# Smart Notes 1.4.2
+# Smart Notes
 
-Aplicativo de notas com versão para computador e aplicativo Android.
+Aplicativo de anotações pessoais e colaborativas com versões para **Windows**, **navegador local** e **Android**. O projeto organiza notas por categorias e subcategorias, separa conteúdo público e privado e mantém os dados em banco local.
 
-## Principais funções
+> Versão atual: **1.4.3**
 
-- Login usando **nome de usuário ou e-mail**.
-- Cadastro de usuários e gerenciamento pelo administrador.
-- Notas privadas, visíveis somente para o autor e para administradores.
-- Notas públicas, exibidas na área **Comunidade** para outros usuários do mesmo banco.
-- Nota pública opcionalmente protegida por senha.
-- Categorias, subcategorias, imagens e observações em notas públicas.
-- Favoritas e fixadas individuais por usuário.
+## Capturas de tela
+
+### Tela inicial
+
+![Tela inicial do Smart Notes](docs/screenshots/tela-inicial.png)
+
+### Visualização e edição de nota
+
+![Detalhes de uma nota](docs/screenshots/detalhes-nota.png)
+
+## Funcionalidades
+
+- Login com **nome de usuário ou e-mail**.
+- Cadastro e edição de perfil.
+- Administração de usuários.
+- Notas privadas, visíveis ao autor e aos administradores.
+- Notas públicas exibidas na área **Comunidade**.
+- Proteção opcional de nota pública por senha.
+- Categorias e subcategorias.
+- Notas favoritas e fixadas por usuário.
+- Inclusão de imagens e observações.
 - Lixeira, restauração e exclusão definitiva.
-- Edição de perfil e recuperação local de senha.
-- Backup diário automático no computador.
-- Backup manual, exportação e importação do banco.
-- Barra lateral fixa no computador.
-- Navegação inferior no celular.
+- Tema claro e escuro.
+- Backup manual e diário.
+- Exportação e importação do banco.
+- Menu lateral no computador.
+- Navegação inferior no aplicativo Android.
+- APK de teste ou assinado gerado pelo GitHub Actions.
 
-## Estrutura
+## Tecnologias
+
+| Área | Tecnologias |
+|---|---|
+| Interface | React, Vite e CSS |
+| Servidor | Node.js e Express |
+| Banco do computador | SQLite |
+| Aplicativo Android | Capacitor |
+| Automação | GitHub Actions |
+| Build Android | Java 21 e Gradle |
+
+## Estrutura do repositório
 
 ```text
-backend/       servidor Node.js e banco SQLite do computador
-frontend/      interface React usada no computador
-mobile-app/    aplicativo Android offline com banco local próprio
-.github/       fluxos do GitHub Actions para gerar o APK
-scripts/       ajustes usados durante a compilação Android
+.github/workflows/   geração da chave e do APK
+backend/             API Node.js e banco SQLite local
+frontend/            interface usada no computador
+mobile-app/          interface e configuração do aplicativo Android
+scripts/mobile/      ajustes aplicados durante o build Android
+docs/screenshots/    imagens usadas neste README
 ```
 
-## Executar no computador
+## Executar no Windows
 
-No Windows, execute:
+Requisitos:
+
+- Node.js LTS instalado.
+- Windows 10 ou 11.
+
+Na raiz do projeto, execute:
 
 ```text
 Iniciar Smart Notes.bat
 ```
 
-Na primeira execução, o arquivo instala as dependências do backend e do frontend. Depois abre:
+Na primeira execução, as dependências são instaladas automaticamente. Depois, a interface abre em:
 
 ```text
 http://localhost:5173
 ```
 
-Conta administrativa inicial:
+### Conta administrativa inicial
 
 ```text
 Usuário: Admin
@@ -50,26 +82,81 @@ E-mail: admin@smartnotes.com
 Senha: 1234
 ```
 
-Troque a senha após o primeiro acesso.
+Altere a senha após o primeiro acesso.
 
-## Bancos do computador e do celular
+## Banco, backup, exportação e importação
 
-A versão do computador usa SQLite em `backend/notas.db`.
-
-O APK usa um banco local próprio no armazenamento privado do aplicativo. A exportação do APK gera um arquivo JSON completo, que pode ser importado novamente no APK.
-
-Os bancos do computador e do APK são independentes. Eles não sincronizam automaticamente.
-
-## Notas públicas
-
-No computador, todos os usuários cadastrados no mesmo servidor/banco conseguem visualizar as notas marcadas como públicas.
-
-No APK offline, todos os usuários cadastrados dentro daquele mesmo aplicativo/banco local conseguem visualizar as notas públicas. Para compartilhar notas automaticamente entre celulares diferentes será necessário, em uma versão futura, hospedar um servidor central ou serviço em nuvem.
-
-## Gerar o APK
-
-Consulte:
+A versão de computador usa o banco:
 
 ```text
-COMO ENVIAR AO GITHUB E GERAR O APK.txt
+backend/notas.db
 ```
+
+Esse arquivo não é enviado ao GitHub. O `.gitignore` também impede o envio de backups, chaves Android, dependências e arquivos temporários.
+
+Pelas configurações do sistema é possível:
+
+- criar um backup imediatamente;
+- exportar uma cópia completa do banco;
+- importar um banco anterior;
+- manter backups diários automáticos.
+
+## Notas públicas e privadas
+
+- **Privada:** somente o autor e administradores podem visualizar.
+- **Pública:** aparece na Comunidade para os usuários do mesmo banco.
+- **Pública protegida:** aparece na Comunidade, mas exige senha para abrir.
+
+A versão atual não sincroniza bancos automaticamente entre computadores ou celulares diferentes. Para compartilhamento em tempo real entre dispositivos será necessário hospedar o backend em um servidor central.
+
+## Gerar o APK pelo GitHub
+
+O workflow está em:
+
+```text
+.github/workflows/02-gerar-apk-android.yml
+```
+
+Para gerar um APK de teste:
+
+1. Abra a guia **Actions** do repositório.
+2. Selecione **02 - Gerar APK Android - Smart Notes 1.4.3**.
+3. Clique em **Run workflow**.
+4. Aguarde a execução ficar verde.
+5. Baixe o artefato **Smart-Notes-APK-1.4.3**.
+
+Sem segredos de assinatura, o workflow gera um APK `debug`, adequado para testes. Com os quatro segredos abaixo, ele gera um APK release assinado:
+
+```text
+ANDROID_KEYSTORE_BASE64
+ANDROID_KEYSTORE_PASSWORD
+ANDROID_KEY_ALIAS
+ANDROID_KEY_PASSWORD
+```
+
+O workflow **01 - Gerar chave Android** auxilia na criação da chave de assinatura.
+
+## Instalar no Android
+
+1. Baixe o artefato gerado pelo GitHub Actions.
+2. Extraia `Smart-Notes.apk`.
+3. Envie o arquivo ao celular.
+4. Autorize a instalação de aplicativos desconhecidos quando o Android solicitar.
+5. Instale e abra o aplicativo.
+
+## Segurança do repositório
+
+Não devem ser publicados:
+
+- `backend/notas.db`;
+- backups pessoais;
+- arquivos `.jks` ou `.keystore`;
+- conteúdo de `keystore-base64.txt`;
+- senhas e variáveis `.env`;
+- diretórios `node_modules`, `dist`, `android` e `APK`.
+
+Esses itens já estão protegidos pelo `.gitignore`.
+
+## Autor
+
+Desenvolvido por **Luan Claiver**.

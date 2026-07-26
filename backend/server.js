@@ -327,7 +327,7 @@ app.get("/status", (req, res) => {
   res.json({
     online: true,
     app: "Smart Notes",
-    versao: "1.4.2"
+    versao: "1.4.3"
   });
 });
 
@@ -1405,5 +1405,5 @@ criarBackupDiarioSeNecessario().catch((error) => {
 });
 
 app.listen(3000, "0.0.0.0", () => {
-  console.log("Smart Notes 1.4.2 rodando em http://localhost:3000");
+  console.log("Smart Notes 1.4.3 rodando em http://localhost:3000");
 });

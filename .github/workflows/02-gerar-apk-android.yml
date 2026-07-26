@@ -1,4 +1,4 @@
-name: 02 - Gerar APK Android - Smart Notes 1.4.2
+name: 02 - Gerar APK Android - Smart Notes 1.4.3
 
 on:
   workflow_dispatch:
@@ -23,7 +23,7 @@ jobs:
         shell: pwsh
 
     steps:
-      - name: Baixar codigo do repositorio
+      - name: Baixar código do repositório
         uses: actions/checkout@v4
 
       - name: Preparar Node.js
@@ -37,11 +37,11 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      - name: Validar estrutura do aplicativo
+      - name: Validar estrutura mobile
         run: |
           $obrigatorios = @(
             'mobile-app/package.json',
-            'mobile-app/capacitor.config.ts',
+            'mobile-app/capacitor.config.json',
             'mobile-app/src/main.jsx',
             'scripts/mobile/Aplicar-Ajustes-Android.ps1'
           )
@@ -50,15 +50,15 @@ jobs:
             throw "Arquivos ausentes: $($ausentes -join ', ')"
           }
 
-      - name: Instalar dependencias sem usar lock antigo
+          Write-Host 'Configuração Capacitor JSON validada.' -ForegroundColor Green
+
+      - name: Instalar dependências mobile
         working-directory: mobile-app
         run: |
-          # Versoes anteriores do repositorio continham um package-lock incompatível.
-          # A compilacao mobile usa somente o package.json desta versao.
           if (Test-Path 'node_modules') { Remove-Item 'node_modules' -Recurse -Force }
-          if (Test-Path 'package-lock.json') { Remove-Item 'package-lock.json' -Force }
-          npm install --no-audit --no-fund --package-lock=false
-          npm ls --depth=0
+          npm install --no-audit --no-fund
+          npx cap --version
+          npm ls @capacitor/cli @capacitor/core @capacitor/android typescript --depth=0
 
       - name: Compilar interface mobile
         working-directory: mobile-app
@@ -67,12 +67,22 @@ jobs:
       - name: Criar e sincronizar projeto Android
         working-directory: mobile-app
         run: |
-          if (-not (Test-Path 'android/gradlew.bat')) {
-            npx cap add android
+          if (Test-Path 'android') {
+            Remove-Item 'android' -Recurse -Force
           }
+
+          npx cap add android
+          if ($LASTEXITCODE -ne 0) {
+            throw 'O Capacitor não conseguiu criar o projeto Android.'
+          }
+
           npx cap sync android
+          if ($LASTEXITCODE -ne 0) {
+            throw 'O Capacitor não conseguiu sincronizar o projeto Android.'
+          }
+
           if (-not (Test-Path 'android/gradlew.bat')) {
-            throw 'O Capacitor nao criou o projeto Android.'
+            throw 'O projeto Android foi criado sem o gradlew.bat.'
           }
 
       - name: Aplicar ajustes Android
@@ -96,7 +106,7 @@ jobs:
               $bytes = [Convert]::FromBase64String($env:ANDROID_KEYSTORE_BASE64.Trim())
               [IO.File]::WriteAllBytes("$pwd/smart-notes-release.jks", $bytes)
             } catch {
-              throw 'ANDROID_KEYSTORE_BASE64 nao contem uma chave valida em Base64.'
+              throw 'ANDROID_KEYSTORE_BASE64 não contém uma chave válida em Base64.'
             }
 
             @'
@@ -124,30 +134,32 @@ jobs:
 
             $env:ANDROID_KEYSTORE_FILE = "$pwd/smart-notes-release.jks"
             .\gradlew.bat assembleRelease --no-daemon --stacktrace
+            if ($LASTEXITCODE -ne 0) { throw 'O Gradle não conseguiu gerar o APK release.' }
             $source = 'app/build/outputs/apk/release/app-release.apk'
             $tipo = 'assinado-release'
           } else {
             Write-Host 'Segredos de assinatura ausentes: gerando APK de teste (debug).' -ForegroundColor Yellow
             .\gradlew.bat assembleDebug --no-daemon --stacktrace
+            if ($LASTEXITCODE -ne 0) { throw 'O Gradle não conseguiu gerar o APK debug.' }
             $source = 'app/build/outputs/apk/debug/app-debug.apk'
             $tipo = 'teste-debug'
           }
 
           if (-not (Test-Path $source)) {
-            throw "O Gradle terminou, mas o APK nao foi encontrado em: $source"
+            throw "O Gradle terminou, mas o APK não foi encontrado em: $source"
           }
 
           $destino = Join-Path $env:GITHUB_WORKSPACE 'APK'
           New-Item -ItemType Directory -Path $destino -Force | Out-Null
           Copy-Item $source (Join-Path $destino 'Smart-Notes.apk') -Force
           $hash = (Get-FileHash (Join-Path $destino 'Smart-Notes.apk') -Algorithm SHA256).Hash
-          "Versao: 1.4.2`nTipo: $tipo`nSHA256: $hash" | Set-Content (Join-Path $destino 'Smart-Notes-SHA256.txt')
+          "Versão: 1.4.3`nTipo: $tipo`nSHA256: $hash" | Set-Content (Join-Path $destino 'Smart-Notes-SHA256.txt')
           "APK gerado no modo: $tipo" >> $env:GITHUB_STEP_SUMMARY
 
       - name: Disponibilizar APK para download
         uses: actions/upload-artifact@v4
         with:
-          name: Smart-Notes-APK-1.4.2
+          name: Smart-Notes-APK-1.4.3
           path: APK/
           if-no-files-found: error
           retention-days: 30
