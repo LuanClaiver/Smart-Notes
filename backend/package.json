@@ -1,7 +1,7 @@
 {
-  "name": "backend",
-  "version": "1.0.0",
-  "description": "",
+  "name": "smart-notes-backend",
+  "version": "1.4.1",
+  "description": "Backend local do Smart Notes com SQLite, login, notas publicas e privadas.",
   "main": "server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",

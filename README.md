@@ -1,132 +1,75 @@
-# 📝 Smart Notes
+# Smart Notes 1.4.1
 
-Sistema moderno de gerenciamento de notas desenvolvido com React, Vite e Node.js.
+Aplicativo de notas com versão para computador e aplicativo Android.
 
----
+## Principais funções
 
-## 📸 Screenshots
+- Login usando **nome de usuário ou e-mail**.
+- Cadastro de usuários e gerenciamento pelo administrador.
+- Notas privadas, visíveis somente para o autor e para administradores.
+- Notas públicas, exibidas na área **Comunidade** para outros usuários do mesmo banco.
+- Nota pública opcionalmente protegida por senha.
+- Categorias, subcategorias, imagens e observações em notas públicas.
+- Favoritas e fixadas individuais por usuário.
+- Lixeira, restauração e exclusão definitiva.
+- Edição de perfil e recuperação local de senha.
+- Backup diário automático no computador.
+- Backup manual, exportação e importação do banco.
+- Barra lateral fixa no computador.
+- Navegação inferior no celular.
 
-### Dashboard
-
-![Dashboard](docs/Dashboard.png)
-
-### Visualização da Nota
-
-![Visualização da Nota](docs/Modal-nota.png)
-
----
-
-## ✨ Funcionalidades
-
-✅ Criar notas
-
-✅ Editar notas
-
-✅ Excluir notas
-
-✅ Favoritar notas
-
-✅ Fixar notas
-
-✅ Categorias
-
-✅ Pesquisa inteligente
-
-✅ Dashboard
-
-✅ Tema claro/escuro
-
-✅ Lixeira
-
-✅ Exclusão definitiva
-
-✅ Restauração
-
----
-
-## 🚀 Tecnologias
-
-### Frontend
-
-- React
-- Vite
-- Axios
-- Tailwind CSS
-
-### Backend
-
-- Node.js
-- Express
-- SQLite
-- Better SQLite3
-
-### Versionamento
-
-- Git
-- GitHub
-
----
-
-## 📂 Estrutura
+## Estrutura
 
 ```text
-frontend/
-backend/
-docs/
-README.md
+backend/       servidor Node.js e banco SQLite do computador
+frontend/      interface React usada no computador
+mobile-app/    aplicativo Android offline com banco local próprio
+.github/       fluxos do GitHub Actions para gerar o APK
+scripts/       ajustes usados durante a compilação Android
 ```
 
----
+## Executar no computador
 
-## ▶ Como Executar
+No Windows, execute:
 
-### Backend
-
-```bash
-cd backend
-npm install
-npm start
+```text
+Iniciar Smart Notes.bat
 ```
 
-### Frontend
+Na primeira execução, o arquivo instala as dependências do backend e do frontend. Depois abre:
 
-```bash
-cd frontend
-npm install
-npm run dev
+```text
+http://localhost:5173
 ```
 
----
+Conta administrativa inicial:
 
-## 📌 Roadmap
+```text
+Usuário: Admin
+E-mail: admin@smartnotes.com
+Senha: 1234
+```
 
-### v1.0 ✅
+Troque a senha após o primeiro acesso.
 
-- CRUD completo
-- Favoritos
-- Fixadas
-- Pesquisa
-- Dashboard
-- Lixeira
+## Bancos do computador e do celular
 
-### v1.1
+A versão do computador usa SQLite em `backend/notas.db`.
 
-- Fechar modal ao clicar fora
-- Fechar modal com ESC
+O APK usa um banco local próprio no armazenamento privado do aplicativo. A exportação do APK gera um arquivo JSON completo, que pode ser importado novamente no APK.
 
-### v1.2
+Os bancos do computador e do APK são independentes. Eles não sincronizam automaticamente.
 
-- SQLite
+## Notas públicas
 
-### v2.0
+No computador, todos os usuários cadastrados no mesmo servidor/banco conseguem visualizar as notas marcadas como públicas.
 
-- Login de usuários
+No APK offline, todos os usuários cadastrados dentro daquele mesmo aplicativo/banco local conseguem visualizar as notas públicas. Para compartilhar notas automaticamente entre celulares diferentes será necessário, em uma versão futura, hospedar um servidor central ou serviço em nuvem.
 
----
+## Gerar o APK
 
-## 👨‍💻 Autor
+Consulte:
 
-Luan Claiver Carvalho Filgueira
-
-GitHub:
-https://github.com/LuanClaiver
+```text
+COMO ENVIAR AO GITHUB E GERAR O APK.txt
+```

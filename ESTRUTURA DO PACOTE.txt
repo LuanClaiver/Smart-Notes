@@ -1,0 +1,17 @@
+SMART NOTES 1.4.1
+=================
+
+01 - Smart Notes - Programa
+  Versao para executar no computador.
+  Mantem o banco notas.db e os dados atuais enviados pelo usuario.
+
+02 - GitHub - Repositorio Completo
+  Projeto limpo para enviar ao GitHub.
+  Inclui backend, frontend, mobile-app, GitHub Actions e scripts.
+  Nao inclui banco pessoal, backups, node_modules ou chaves.
+
+Arquivos principais:
+- Iniciar Smart Notes.bat
+- ENVIAR REPOSITORIO COMPLETO.bat
+- ATUALIZAR GITHUB.bat
+- COMO ENVIAR AO GITHUB E GERAR O APK.txt

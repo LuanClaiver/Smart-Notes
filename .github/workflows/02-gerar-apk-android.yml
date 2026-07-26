@@ -1,0 +1,130 @@
+name: 02 - Gerar APK Android
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, principal]
+    paths:
+      - 'mobile-app/**'
+      - 'scripts/mobile/**'
+      - '.github/workflows/02-gerar-apk-android.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  gerar-apk:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+      - name: Baixar codigo
+        uses: actions/checkout@v4
+
+      - name: Preparar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Preparar Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Validar projeto
+        run: |
+          if (-not (Test-Path 'mobile-app/package.json')) { throw 'mobile-app/package.json nao foi encontrado.' }
+          if (-not (Test-Path 'mobile-app/capacitor.config.ts')) { throw 'mobile-app/capacitor.config.ts nao foi encontrado.' }
+
+      - name: Instalar dependencias
+        working-directory: mobile-app
+        run: npm install --no-audit --no-fund
+
+      - name: Compilar interface
+        working-directory: mobile-app
+        run: npm run build
+
+      - name: Criar e sincronizar Android
+        working-directory: mobile-app
+        run: |
+          if (-not (Test-Path 'android/gradlew.bat')) {
+            npx cap add android
+          }
+          npx cap sync android
+
+      - name: Aplicar ajustes Android
+        run: ./scripts/mobile/Aplicar-Ajustes-Android.ps1 "$pwd/mobile-app/android"
+
+      - name: Gerar APK de teste ou assinado
+        working-directory: mobile-app/android
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          $signed = -not [string]::IsNullOrWhiteSpace($env:ANDROID_KEYSTORE_BASE64) -and
+                    -not [string]::IsNullOrWhiteSpace($env:ANDROID_KEYSTORE_PASSWORD) -and
+                    -not [string]::IsNullOrWhiteSpace($env:ANDROID_KEY_ALIAS) -and
+                    -not [string]::IsNullOrWhiteSpace($env:ANDROID_KEY_PASSWORD)
+
+          if ($signed) {
+            try {
+              $bytes = [Convert]::FromBase64String($env:ANDROID_KEYSTORE_BASE64.Trim())
+              [IO.File]::WriteAllBytes("$pwd/smart-notes-release.jks", $bytes)
+            } catch {
+              throw 'ANDROID_KEYSTORE_BASE64 nao contem uma chave valida em Base64.'
+            }
+
+            @'
+            android {
+                signingConfigs {
+                    release {
+                        storeFile file(System.getenv("ANDROID_KEYSTORE_FILE"))
+                        storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                        keyAlias System.getenv("ANDROID_KEY_ALIAS")
+                        keyPassword System.getenv("ANDROID_KEY_PASSWORD")
+                    }
+                }
+                buildTypes {
+                    release {
+                        signingConfig signingConfigs.release
+                    }
+                }
+            }
+            '@ | Set-Content -Path app/signing.gradle -Encoding utf8
+
+            $gradle = Get-Content app/build.gradle -Raw
+            if ($gradle -notmatch "apply from: 'signing.gradle'") {
+              Add-Content -Path app/build.gradle -Value "`napply from: 'signing.gradle'`n"
+            }
+
+            $env:ANDROID_KEYSTORE_FILE = "$pwd/smart-notes-release.jks"
+            .\gradlew.bat assembleRelease --no-daemon --stacktrace
+            $source = 'app/build/outputs/apk/release/app-release.apk'
+            $tipo = 'assinado'
+          } else {
+            Write-Host 'Segredos de assinatura ausentes: gerando APK de teste (debug).' -ForegroundColor Yellow
+            .\gradlew.bat assembleDebug --no-daemon --stacktrace
+            $source = 'app/build/outputs/apk/debug/app-debug.apk'
+            $tipo = 'teste-debug'
+          }
+
+          if (-not (Test-Path $source)) { throw "APK nao encontrado em $source" }
+          New-Item -ItemType Directory -Path ../../APK -Force | Out-Null
+          Copy-Item $source '../../APK/Smart-Notes.apk' -Force
+          $hash = (Get-FileHash '../../APK/Smart-Notes.apk' -Algorithm SHA256).Hash
+          "Tipo: $tipo`nSHA256: $hash" | Set-Content '../../APK/Smart-Notes-SHA256.txt'
+          "APK gerado no modo: $tipo" >> $env:GITHUB_STEP_SUMMARY
+
+      - name: Disponibilizar APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Smart-Notes-APK
+          path: APK/
+          if-no-files-found: error
+          retention-days: 30

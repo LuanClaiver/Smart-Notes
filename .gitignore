@@ -1,0 +1,30 @@
+# Dependencias e builds
+**/node_modules/
+**/dist/
+mobile-app/android/
+APK/
+
+# Bancos e dados pessoais
+backend/notas.db
+backend/notas.db-*
+backend/*.db-wal
+backend/*.db-shm
+backend/.smart-notes-import-pending.*
+backend/backups/*
+!backend/backups/.gitkeep
+backend/backup-notas-json.json
+
+# Chaves e configuracoes privadas
+*.jks
+*.keystore
+keystore-base64.txt
+informacoes-chave.txt
+.env
+.env.*
+
+# Editor e sistema
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log

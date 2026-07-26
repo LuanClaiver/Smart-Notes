@@ -1,0 +1,67 @@
+name: 01 - Gerar chave Android
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gerar-chave:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Preparar Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Validar segredos
+        shell: bash
+        env:
+          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          [ -n "$STORE_PASSWORD" ] || { echo "Defina ANDROID_KEYSTORE_PASSWORD nos segredos do repositorio."; exit 1; }
+          [ -n "$KEY_ALIAS" ] || { echo "Defina ANDROID_KEY_ALIAS nos segredos do repositorio."; exit 1; }
+          [ -n "$KEY_PASSWORD" ] || { echo "Defina ANDROID_KEY_PASSWORD nos segredos do repositorio."; exit 1; }
+
+      - name: Criar chave de assinatura
+        shell: bash
+        env:
+          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          keytool -genkeypair -v \
+            -keystore smart-notes-release.jks \
+            -storetype JKS \
+            -storepass "$STORE_PASSWORD" \
+            -alias "$KEY_ALIAS" \
+            -keypass "$KEY_PASSWORD" \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -dname "CN=Smart Notes, OU=Aplicativo Pessoal, O=Smart Notes, L=Crato, ST=Ceara, C=BR"
+
+          keytool -list -v \
+            -keystore smart-notes-release.jks \
+            -storetype JKS \
+            -storepass "$STORE_PASSWORD" \
+            -alias "$KEY_ALIAS" > informacoes-chave.txt
+
+          base64 -w 0 smart-notes-release.jks > keystore-base64.txt
+          echo "Guarde o arquivo smart-notes-release.jks. Ele sera necessario para todas as atualizacoes futuras." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Disponibilizar chave
+        uses: actions/upload-artifact@v4
+        with:
+          name: chave-smart-notes
+          path: |
+            smart-notes-release.jks
+            keystore-base64.txt
+            informacoes-chave.txt
+          retention-days: 7
