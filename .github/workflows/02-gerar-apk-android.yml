@@ -88,62 +88,18 @@ jobs:
       - name: Aplicar ajustes Android
         run: ./scripts/mobile/Aplicar-Ajustes-Android.ps1 "$pwd/mobile-app/android"
 
-      - name: Gerar APK de teste ou assinado
+            - name: Gerar APK de teste
         working-directory: mobile-app/android
-        env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          $signed = -not [string]::IsNullOrWhiteSpace($env:ANDROID_KEYSTORE_BASE64) -and
-                    -not [string]::IsNullOrWhiteSpace($env:ANDROID_KEYSTORE_PASSWORD) -and
-                    -not [string]::IsNullOrWhiteSpace($env:ANDROID_KEY_ALIAS) -and
-                    -not [string]::IsNullOrWhiteSpace($env:ANDROID_KEY_PASSWORD)
+          Write-Host 'Gerando APK Debug para teste...' -ForegroundColor Cyan
 
-          if ($signed) {
-            try {
-              $bytes = [Convert]::FromBase64String($env:ANDROID_KEYSTORE_BASE64.Trim())
-              [IO.File]::WriteAllBytes("$pwd/smart-notes-release.jks", $bytes)
-            } catch {
-              throw 'ANDROID_KEYSTORE_BASE64 não contém uma chave válida em Base64.'
-            }
+          .\gradlew.bat assembleDebug --no-daemon --stacktrace
 
-            @'
-            android {
-                signingConfigs {
-                    release {
-                        storeFile file(System.getenv("ANDROID_KEYSTORE_FILE"))
-                        storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
-                        keyAlias System.getenv("ANDROID_KEY_ALIAS")
-                        keyPassword System.getenv("ANDROID_KEY_PASSWORD")
-                    }
-                }
-                buildTypes {
-                    release {
-                        signingConfig signingConfigs.release
-                    }
-                }
-            }
-            '@ | Set-Content -Path app/signing.gradle -Encoding utf8
-
-            $gradle = Get-Content app/build.gradle -Raw
-            if ($gradle -notmatch "apply from: 'signing.gradle'") {
-              Add-Content -Path app/build.gradle -Value "`napply from: 'signing.gradle'`n"
-            }
-
-            $env:ANDROID_KEYSTORE_FILE = "$pwd/smart-notes-release.jks"
-            .\gradlew.bat assembleRelease --no-daemon --stacktrace
-            if ($LASTEXITCODE -ne 0) { throw 'O Gradle não conseguiu gerar o APK release.' }
-            $source = 'app/build/outputs/apk/release/app-release.apk'
-            $tipo = 'assinado-release'
-          } else {
-            Write-Host 'Segredos de assinatura ausentes: gerando APK de teste (debug).' -ForegroundColor Yellow
-            .\gradlew.bat assembleDebug --no-daemon --stacktrace
-            if ($LASTEXITCODE -ne 0) { throw 'O Gradle não conseguiu gerar o APK debug.' }
-            $source = 'app/build/outputs/apk/debug/app-debug.apk'
-            $tipo = 'teste-debug'
+          if ($LASTEXITCODE -ne 0) {
+            throw 'O Gradle não conseguiu gerar o APK Debug.'
           }
+
+          $source = 'app/build/outputs/apk/debug/app-debug.apk'
 
           if (-not (Test-Path $source)) {
             throw "O Gradle terminou, mas o APK não foi encontrado em: $source"
@@ -151,10 +107,19 @@ jobs:
 
           $destino = Join-Path $env:GITHUB_WORKSPACE 'APK'
           New-Item -ItemType Directory -Path $destino -Force | Out-Null
-          Copy-Item $source (Join-Path $destino 'Smart-Notes.apk') -Force
-          $hash = (Get-FileHash (Join-Path $destino 'Smart-Notes.apk') -Algorithm SHA256).Hash
-          "Versão: 1.4.3`nTipo: $tipo`nSHA256: $hash" | Set-Content (Join-Path $destino 'Smart-Notes-SHA256.txt')
-          "APK gerado no modo: $tipo" >> $env:GITHUB_STEP_SUMMARY
+
+          $apkDestino = Join-Path $destino 'Smart-Notes.apk'
+          Copy-Item $source $apkDestino -Force
+
+          $hash = (Get-FileHash $apkDestino -Algorithm SHA256).Hash
+
+          @(
+            'Versão: 1.4.3'
+            'Tipo: teste-debug'
+            "SHA256: $hash"
+          ) | Set-Content (Join-Path $destino 'Smart-Notes-SHA256.txt') -Encoding utf8
+
+          "APK gerado no modo teste-debug." >> $env:GITHUB_STEP_SUMMARY
 
       - name: Disponibilizar APK para download
         uses: actions/upload-artifact@v4
