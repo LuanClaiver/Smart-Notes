@@ -87,8 +87,10 @@ jobs:
 
       - name: Aplicar ajustes Android
         run: ./scripts/mobile/Aplicar-Ajustes-Android.ps1 "$pwd/mobile-app/android"
+      - name: Aplicar ajustes Android
+        run: ./scripts/mobile/Aplicar-Ajustes-Android.ps1 "$pwd/mobile-app/android"
 
-            - name: Gerar APK de teste
+      - name: Gerar APK de teste
         working-directory: mobile-app/android
         run: |
           Write-Host 'Gerando APK Debug para teste...' -ForegroundColor Cyan
