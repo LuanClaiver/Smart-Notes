@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  criarBackupService,
   exportarBancoService,
   importarBancoService,
   listarBackupsService
@@ -94,7 +93,6 @@ function Configuracoes({ temaEscuro, usuario, onBancoImportado }) {
           {erro && <div className="mt-4 rounded-2xl p-4 bg-red-500/10 border border-red-500/40 text-red-400 font-bold">{erro}</div>}
 
           <div className="flex flex-wrap gap-3 mt-5">
-            <button disabled={carregando} onClick={() => executar(criarBackupService, "Backup criado com sucesso.")} className="smart-action-button">Fazer backup agora</button>
             <button disabled={carregando} onClick={() => executar(exportarBancoService, "Banco exportado para Downloads.")} className="smart-action-button">Exportar banco</button>
             <button disabled={carregando} onClick={() => inputRef.current?.click()} className="smart-action-button">Importar banco</button>
             <input ref={inputRef} type="file" accept=".json,application/json" onChange={importar} className="hidden" />
@@ -107,7 +105,7 @@ function Configuracoes({ temaEscuro, usuario, onBancoImportado }) {
                 <span className="shrink-0 text-slate-400">{Math.max(1, Math.round(item.tamanho / 1024))} KB</span>
               </div>
             ))}
-            {backups.length === 0 && <p className="py-4 text-sm text-slate-400">Nenhum backup manual criado ainda.</p>}
+            {backups.length === 0 && <p className="py-4 text-sm text-slate-400">Nenhum backup automático registrado ainda.</p>}
           </div>
         </article>
       )}

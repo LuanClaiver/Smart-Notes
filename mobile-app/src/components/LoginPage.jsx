@@ -106,11 +106,11 @@ function LoginPage({ temaEscuro, setTemaEscuro, onAutenticado }) {
           temaEscuro ? "bg-slate-900/90 border-slate-800" : "bg-white border-slate-200"
         }`}
       >
-        <section className="p-8 md:p-12 flex flex-col justify-between gap-10 bg-gradient-to-br from-emerald-700 via-slate-900 to-slate-950 text-white">
+        <section className="order-2 lg:order-1 p-8 md:p-12 flex flex-col justify-between gap-10 bg-gradient-to-br from-emerald-700 via-slate-900 to-slate-950 text-white">
           <div>
             <div className="inline-flex items-center gap-3 bg-white/10 border border-white/20 rounded-full px-4 py-2 mb-8 backdrop-blur">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-              <span className="text-sm font-medium">Smart Notes</span>
+              <img src="/smart-notes-logo.svg" alt="" className="w-8 h-8 rounded-xl shadow-lg" />
+              <span className="text-sm font-bold">Smart Notes <span className="text-emerald-300">1.4.4</span></span>
             </div>
 
             <h1 className="text-4xl md:text-6xl font-black leading-tight mb-5">
@@ -138,7 +138,11 @@ function LoginPage({ temaEscuro, setTemaEscuro, onAutenticado }) {
           </div>
         </section>
 
-        <section className="p-6 md:p-10">
+        <section className="order-1 lg:order-2 p-6 md:p-10">
+          <div className="flex items-center gap-3 mb-7">
+            <img src="/smart-notes-logo.svg" alt="Logo Smart Notes" className="w-14 h-14 rounded-2xl shadow-xl" />
+            <div><strong className="block text-xl">Smart Notes</strong><span className="text-xs text-emerald-500 font-bold">Versão 1.4.4</span></div>
+          </div>
           <div className="flex justify-between items-center mb-8">
             <div>
               <p className="text-sm text-emerald-500 font-bold uppercase tracking-[0.25em]">
@@ -161,16 +165,18 @@ function LoginPage({ temaEscuro, setTemaEscuro, onAutenticado }) {
               {modo === "cadastro" && (
                 <>
                   <div>
-                    <label className="block text-sm font-bold mb-2">Nome</label>
+                    <label className="block text-sm font-bold mb-2">Nome de exibição</label>
                     <input
                       value={nome}
                       onChange={(event) => setNome(event.target.value)}
                       className={`w-full px-4 py-3 rounded-xl border outline-none transition-all ${
                         temaEscuro ? "bg-slate-800 border-slate-700 focus:border-emerald-500" : "bg-white border-slate-300 focus:border-emerald-500"
                       }`}
-                      placeholder="Digite seu nome"
+                      placeholder="Ex.: João D’Ávila-Silva"
+                      maxLength={80}
                       autoComplete="name"
                     />
+                    <p className="mt-2 text-xs text-slate-400">Aceita espaços, acentos, apóstrofo e hífen.</p>
                   </div>
                   <div>
                     <label className="block text-sm font-bold mb-2">Nome de usuário</label>
@@ -180,7 +186,10 @@ function LoginPage({ temaEscuro, setTemaEscuro, onAutenticado }) {
                       className={`w-full px-4 py-3 rounded-xl border outline-none transition-all ${
                         temaEscuro ? "bg-slate-800 border-slate-700 focus:border-emerald-500" : "bg-white border-slate-300 focus:border-emerald-500"
                       }`}
-                      placeholder="Ex.: seu.usuario"
+                      placeholder="Ex.: joao.silva"
+                      minLength={3}
+                      maxLength={30}
+                      spellCheck="false"
                       autoComplete="username"
                     />
                   </div>

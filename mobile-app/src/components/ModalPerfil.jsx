@@ -63,10 +63,10 @@ function ModalPerfil({ aberto, usuario, temaEscuro, onFechar, onSalvar }) {
         </div>
 
         <label className="block text-sm font-bold mb-2">Nome de exibição</label>
-        <input value={nome} onChange={(event) => setNome(event.target.value)} className={`w-full p-4 rounded-2xl border outline-none mb-5 ${temaEscuro ? "bg-slate-900 border-slate-800" : "bg-slate-50 border-slate-200"}`} />
+        <input value={nome} onChange={(event) => setNome(event.target.value)} maxLength={80} placeholder="Ex.: Maria d’Ávila-Santos" className={`w-full p-4 rounded-2xl border outline-none mb-5 ${temaEscuro ? "bg-slate-900 border-slate-800" : "bg-slate-50 border-slate-200"}`} />
 
         <label className="block text-sm font-bold mb-2">Nome de usuário</label>
-        <input value={usuarioLogin} onChange={(event) => setUsuarioLogin(event.target.value)} className={`w-full p-4 rounded-2xl border outline-none mb-5 ${temaEscuro ? "bg-slate-900 border-slate-800" : "bg-slate-50 border-slate-200"}`} />
+        <input value={usuarioLogin} onChange={(event) => setUsuarioLogin(event.target.value)} minLength={3} maxLength={30} spellCheck="false" placeholder="Ex.: maria.santos" className={`w-full p-4 rounded-2xl border outline-none mb-5 ${temaEscuro ? "bg-slate-900 border-slate-800" : "bg-slate-50 border-slate-200"}`} />
 
         <button onClick={() => onSalvar({ nome, usuario: usuarioLogin, fotoPerfil })} className="w-full px-5 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black">
           Salvar perfil

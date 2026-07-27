@@ -8,6 +8,21 @@ const db = require("./database");
 
 const app = express();
 
+const REGEX_NOME_EXIBICAO = /^[\p{L}\p{M}]+(?:[ '\u2019-][\p{L}\p{M}]+)*$/u;
+const REGEX_USUARIO_LOGIN = /^[a-zA-Z0-9._-]{3,30}$/;
+
+function normalizarNomeExibicao(valor) {
+  return String(valor || "").normalize("NFC").trim().replace(/\s+/g, " ");
+}
+
+function nomeExibicaoValido(nome) {
+  return nome.length >= 2 && nome.length <= 80 && REGEX_NOME_EXIBICAO.test(nome);
+}
+
+function usuarioLoginValido(usuario) {
+  return REGEX_USUARIO_LOGIN.test(usuario);
+}
+
 app.use(cors({ exposedHeaders: ["Content-Disposition", "Content-Length"] }));
 app.use(express.json({ limit: "40mb" }));
 
@@ -327,21 +342,25 @@ app.get("/status", (req, res) => {
   res.json({
     online: true,
     app: "Smart Notes",
-    versao: "1.4.3"
+    versao: "1.4.4"
   });
 });
 
 app.post("/auth/cadastro", (req, res) => {
-  const nome = String(req.body.nome || "").trim();
+  const nome = normalizarNomeExibicao(req.body.nome);
   const usuarioLogin = String(req.body.usuario || "").trim();
   const email = String(req.body.email || "").trim().toLowerCase();
   const senha = String(req.body.senha || "");
 
   if (!nome || !usuarioLogin || !email || !senha) {
-    return res.status(400).json({ erro: "Preencha nome, usuário, e-mail e senha" });
+    return res.status(400).json({ erro: "Preencha nome de exibição, nome de usuário, e-mail e senha" });
   }
 
-  if (!/^[a-zA-Z0-9._-]{3,30}$/.test(usuarioLogin)) {
+  if (!nomeExibicaoValido(nome)) {
+    return res.status(400).json({ erro: "O nome de exibição deve ter de 2 a 80 caracteres e pode usar letras, espaços, acentos, apóstrofo e hífen" });
+  }
+
+  if (!usuarioLoginValido(usuarioLogin)) {
     return res.status(400).json({ erro: "O usuário deve ter de 3 a 30 caracteres e usar apenas letras, números, ponto, traço ou sublinhado" });
   }
 
@@ -492,15 +511,19 @@ app.post("/auth/logout", autenticar, (req, res) => {
 });
 
 app.put("/usuarios/perfil", autenticar, (req, res) => {
-  const nome = String(req.body.nome || "").trim();
+  const nome = normalizarNomeExibicao(req.body.nome);
   const usuarioLogin = String(req.body.usuario || req.usuario.usuario || "").trim();
   const fotoPerfil = String(req.body.fotoPerfil || "");
 
   if (!nome || !usuarioLogin) {
-    return res.status(400).json({ erro: "Informe nome e usuário" });
+    return res.status(400).json({ erro: "Informe nome de exibição e nome de usuário" });
   }
 
-  if (!/^[a-zA-Z0-9._-]{3,30}$/.test(usuarioLogin)) {
+  if (!nomeExibicaoValido(nome)) {
+    return res.status(400).json({ erro: "Nome de exibição inválido. Use letras, espaços, acentos, apóstrofo e hífen" });
+  }
+
+  if (!usuarioLoginValido(usuarioLogin)) {
     return res.status(400).json({ erro: "Usuário inválido" });
   }
 
@@ -541,14 +564,26 @@ app.get("/admin/usuarios", autenticar, exigirAdmin, (req, res) => {
 
 app.put("/admin/usuarios/:id", autenticar, exigirAdmin, (req, res) => {
   const id = Number(req.params.id);
-  const nome = String(req.body.nome || "").trim();
+  const nome = normalizarNomeExibicao(req.body.nome);
   const usuarioLogin = String(req.body.usuario || "").trim();
   const email = String(req.body.email || "").trim().toLowerCase();
   const tipoUsuario = String(req.body.tipoUsuario || "usuario") === "admin" ? "admin" : "usuario";
   const ativo = req.body.ativo ? 1 : 0;
 
   if (!nome || !usuarioLogin || !email) {
-    return res.status(400).json({ erro: "Preencha nome, usuário e e-mail" });
+    return res.status(400).json({ erro: "Preencha nome de exibição, nome de usuário e e-mail" });
+  }
+
+  if (!nomeExibicaoValido(nome)) {
+    return res.status(400).json({ erro: "Nome de exibição inválido. Use letras, espaços, acentos, apóstrofo e hífen" });
+  }
+
+  if (!usuarioLoginValido(usuarioLogin)) {
+    return res.status(400).json({ erro: "O nome de usuário deve ter de 3 a 30 caracteres e usar apenas letras, números, ponto, traço ou sublinhado" });
+  }
+
+  if (!email.includes("@")) {
+    return res.status(400).json({ erro: "Informe um e-mail válido" });
   }
 
   if (id === req.usuario.id && ativo === 0) {
@@ -1405,5 +1440,5 @@ criarBackupDiarioSeNecessario().catch((error) => {
 });
 
 app.listen(3000, "0.0.0.0", () => {
-  console.log("Smart Notes 1.4.3 rodando em http://localhost:3000");
+  console.log("Smart Notes 1.4.4 rodando em http://localhost:3000");
 });

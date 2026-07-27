@@ -1,6 +1,6 @@
 {
   "name": "smart-notes-backend",
-  "version": "1.4.3",
+  "version": "1.4.4",
   "description": "Backend local do Smart Notes com SQLite, login, notas publicas e privadas.",
   "main": "server.js",
   "scripts": {

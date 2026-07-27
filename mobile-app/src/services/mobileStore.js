@@ -3,10 +3,25 @@ import { Directory, Encoding, Filesystem } from "@capacitor/filesystem";
 import { Share } from "@capacitor/share";
 
 const DB_NAME = "smart-notes-mobile";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_NAME = "app";
 const STATE_KEY = "state";
 const BACKUP_HISTORY_KEY = "smartNotesMobileBackups";
+const AUTO_BACKUP_PREFIX = "auto-backup:";
+const REGEX_NOME_EXIBICAO = /^[\p{L}\p{M}]+(?:[ '\u2019-][\p{L}\p{M}]+)*$/u;
+const REGEX_USUARIO_LOGIN = /^[a-zA-Z0-9._-]{3,30}$/;
+
+function normalizarNomeExibicao(valor) {
+  return String(valor || "").normalize("NFC").trim().replace(/\s+/g, " ");
+}
+
+function nomeExibicaoValido(nome) {
+  return nome.length >= 2 && nome.length <= 80 && REGEX_NOME_EXIBICAO.test(nome);
+}
+
+function usuarioLoginValido(usuario) {
+  return REGEX_USUARIO_LOGIN.test(usuario);
+}
 let filaMutacoes = Promise.resolve();
 
 const categoriasPadrao = [
@@ -129,7 +144,7 @@ async function criarEstadoInicial() {
   }
   return {
     format: "smart-notes-mobile",
-    version: 1,
+    version: 2,
     counters: { usuario: 1, nota: 0, categoria: categoriaId, subcategoria: subcategoriaId, observacao: 0 },
     usuarios: [admin],
     sessoes: [],
@@ -147,7 +162,7 @@ function normalizarEstado(estado) {
   const base = estado && typeof estado === "object" ? estado : {};
   return {
     format: "smart-notes-mobile",
-    version: 1,
+    version: 2,
     counters: {
       usuario: Number(base.counters?.usuario || Math.max(0, ...(base.usuarios || []).map((item) => Number(item.id) || 0))),
       nota: Number(base.counters?.nota || Math.max(0, ...(base.notas || []).map((item) => Number(item.id) || 0))),
@@ -155,7 +170,7 @@ function normalizarEstado(estado) {
       subcategoria: Number(base.counters?.subcategoria || Math.max(0, ...(base.subcategorias || []).map((item) => Number(item.id) || 0))),
       observacao: Number(base.counters?.observacao || Math.max(0, ...(base.observacoes || []).map((item) => Number(item.id) || 0)))
     },
-    usuarios: Array.isArray(base.usuarios) ? base.usuarios : [],
+    usuarios: Array.isArray(base.usuarios) ? base.usuarios.map((item) => ({ ...item, nome: normalizarNomeExibicao(item.nome), usuario: String(item.usuario || "").trim() })) : [],
     sessoes: Array.isArray(base.sessoes) ? base.sessoes : [],
     notas: Array.isArray(base.notas) ? base.notas : [],
     categorias: Array.isArray(base.categorias) ? base.categorias : [],
@@ -167,13 +182,30 @@ function normalizarEstado(estado) {
   };
 }
 
+async function garantirBackupAutomatico(estado) {
+  const dia = agora().slice(0, 10);
+  const chave = `${AUTO_BACKUP_PREFIX}${dia}`;
+  if (await lerChave(chave)) return;
+  const conteudo = JSON.stringify(estado);
+  await gravarChave(chave, conteudo);
+  salvarHistorico({
+    nome: `smart-notes-automatico-${dia}.json`,
+    tamanho: new Blob([conteudo]).size,
+    criadoEm: agora(),
+    local: "Armazenamento interno",
+    automatico: true
+  });
+}
+
 async function obterEstado() {
   let estado = await lerChave(STATE_KEY);
   if (!estado) {
     estado = await criarEstadoInicial();
     await gravarChave(STATE_KEY, estado);
   }
-  return normalizarEstado(JSON.parse(JSON.stringify(estado)));
+  const normalizado = normalizarEstado(JSON.parse(JSON.stringify(estado)));
+  await garantirBackupAutomatico(normalizado);
+  return normalizado;
 }
 
 function mutarEstado(trabalho) {
@@ -293,11 +325,12 @@ export async function loginLocal({ identificador, email, usuario, senha }) {
 }
 
 export async function cadastroLocal({ nome, usuario, email, senha }) {
-  const nomeLimpo = String(nome || "").trim();
+  const nomeLimpo = normalizarNomeExibicao(nome);
   const login = String(usuario || "").trim();
   const emailLimpo = String(email || "").trim().toLowerCase();
-  if (!nomeLimpo || !login || !emailLimpo || !senha) throw apiError("Preencha nome, usuário, e-mail e senha");
-  if (!/^[a-zA-Z0-9._-]{3,30}$/.test(login)) throw apiError("O usuário deve ter de 3 a 30 caracteres e usar apenas letras, números, ponto, traço ou sublinhado");
+  if (!nomeLimpo || !login || !emailLimpo || !senha) throw apiError("Preencha nome de exibição, nome de usuário, e-mail e senha");
+  if (!nomeExibicaoValido(nomeLimpo)) throw apiError("O nome de exibição deve ter de 2 a 80 caracteres e pode usar letras, espaços, acentos, apóstrofo e hífen");
+  if (!usuarioLoginValido(login)) throw apiError("O usuário deve ter de 3 a 30 caracteres e usar apenas letras, números, ponto, traço ou sublinhado");
   if (!emailLimpo.includes("@")) throw apiError("Informe um e-mail válido");
   if (String(senha).length < 4) throw apiError("A senha precisa ter pelo menos 4 caracteres");
   return mutarEstado(async (estado) => {
@@ -353,9 +386,10 @@ export async function logoutLocal(token) {
 export async function atualizarPerfilLocal(dados) {
   return mutarEstado(async (estado) => {
     const atual = usuarioAtualNoEstado(estado);
-    const nome = String(dados.nome || "").trim();
+    const nome = normalizarNomeExibicao(dados.nome);
     const login = String(dados.usuario || atual.usuario || "").trim();
-    if (!nome || !/^[a-zA-Z0-9._-]{3,30}$/.test(login)) throw apiError("Informe nome e usuário válidos");
+    if (!nomeExibicaoValido(nome)) throw apiError("Nome de exibição inválido. Use letras, espaços, acentos, apóstrofo e hífen");
+    if (!usuarioLoginValido(login)) throw apiError("Nome de usuário inválido");
     if (estado.usuarios.some((item) => item.id !== atual.id && String(item.usuario).toLowerCase() === login.toLowerCase())) throw apiError("Este nome de usuário já está em uso", 409);
     atual.nome = nome;
     atual.usuario = login;
@@ -376,12 +410,16 @@ export async function editarUsuarioLocal(id, dados) {
     exigirAdmin(admin);
     const usuario = estado.usuarios.find((item) => Number(item.id) === Number(id));
     if (!usuario) throw apiError("Usuário não encontrado", 404);
+    const nome = normalizarNomeExibicao(dados.nome);
     const login = String(dados.usuario || "").trim();
     const email = String(dados.email || "").trim().toLowerCase();
-    if (!dados.nome || !login || !email) throw apiError("Preencha nome, usuário e e-mail");
+    if (!nome || !login || !email) throw apiError("Preencha nome de exibição, nome de usuário e e-mail");
+    if (!nomeExibicaoValido(nome)) throw apiError("Nome de exibição inválido. Use letras, espaços, acentos, apóstrofo e hífen");
+    if (!usuarioLoginValido(login)) throw apiError("Nome de usuário inválido");
+    if (!email.includes("@")) throw apiError("Informe um e-mail válido");
     if (estado.usuarios.some((item) => item.id !== usuario.id && (String(item.usuario).toLowerCase() === login.toLowerCase() || String(item.email).toLowerCase() === email))) throw apiError("Este usuário ou e-mail já está em uso", 409);
     if (usuario.id === admin.id && !dados.ativo) throw apiError("Você não pode desativar seu próprio usuário");
-    Object.assign(usuario, { nome: String(dados.nome).trim(), usuario: login, email, tipoUsuario: dados.tipoUsuario === "admin" ? "admin" : "usuario", ativo: Boolean(dados.ativo) });
+    Object.assign(usuario, { nome, usuario: login, email, tipoUsuario: dados.tipoUsuario === "admin" ? "admin" : "usuario", ativo: Boolean(dados.ativo) });
     return { data: { usuario: usuarioPublico(usuario) } };
   });
 }
@@ -408,7 +446,7 @@ export async function carregarCategoriasLocal() {
 export async function criarCategoriaLocal(dados) {
   return mutarEstado(async (estado) => {
     const usuario = usuarioAtualNoEstado(estado);
-    const nome = String(dados.nome || "").trim();
+    const nome = normalizarNomeExibicao(dados.nome);
     if (!nome) throw apiError("Informe o nome da categoria");
     if (estado.categorias.some((item) => item.ativo && item.nome.toLowerCase() === nome.toLowerCase())) throw apiError("Essa categoria já existe", 409);
     estado.categorias.push({ id: ++estado.counters.categoria, nome, icone: String(dados.icone || "📁"), criadoPor: usuario.id, criadoEm: agora(), ativo: true });
@@ -420,7 +458,7 @@ export async function criarSubcategoriaLocal(dados) {
   return mutarEstado(async (estado) => {
     const usuario = usuarioAtualNoEstado(estado);
     const categoria = estado.categorias.find((item) => item.ativo && item.nome.toLowerCase() === String(dados.categoria || "").trim().toLowerCase());
-    const nome = String(dados.nome || "").trim();
+    const nome = normalizarNomeExibicao(dados.nome);
     if (!categoria || !nome) throw apiError("Informe categoria e subcategoria");
     const existente = estado.subcategorias.find((item) => item.categoriaId === categoria.id && item.nome.toLowerCase() === nome.toLowerCase());
     if (existente?.ativo) throw apiError("Essa subcategoria já existe nessa categoria", 409);

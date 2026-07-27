@@ -81,8 +81,8 @@ function AdminUsuarios({ temaEscuro, usuarioAtual }) {
           {usuarios.map((usuario) => (
             <article key={usuario.id} className={`rounded-3xl border p-4 ${temaEscuro ? "bg-slate-950 border-slate-800" : "bg-slate-50 border-slate-200"}`}>
               <div className="grid grid-cols-1 lg:grid-cols-[1fr_0.8fr_1fr_150px_110px] gap-3 items-center">
-                <input value={usuario.nome} onChange={(event) => atualizarCampo(usuario.id, "nome", event.target.value)} placeholder="Nome" className={`p-3 rounded-2xl border outline-none ${temaEscuro ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"}`} />
-                <input value={usuario.usuario || ""} onChange={(event) => atualizarCampo(usuario.id, "usuario", event.target.value)} placeholder="Usuário" className={`p-3 rounded-2xl border outline-none ${temaEscuro ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"}`} />
+                <input value={usuario.nome} onChange={(event) => atualizarCampo(usuario.id, "nome", event.target.value)} placeholder="Nome de exibição" maxLength={80} className={`p-3 rounded-2xl border outline-none ${temaEscuro ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"}`} />
+                <input value={usuario.usuario || ""} onChange={(event) => atualizarCampo(usuario.id, "usuario", event.target.value)} placeholder="Nome de usuário" minLength={3} maxLength={30} spellCheck="false" className={`p-3 rounded-2xl border outline-none ${temaEscuro ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"}`} />
                 <input value={usuario.email} onChange={(event) => atualizarCampo(usuario.id, "email", event.target.value)} className={`p-3 rounded-2xl border outline-none ${temaEscuro ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"}`} />
                 <select value={usuario.tipoUsuario} onChange={(event) => atualizarCampo(usuario.id, "tipoUsuario", event.target.value)} className={`p-3 rounded-2xl border outline-none ${temaEscuro ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"}`}>
                   <option value="usuario">Usuário</option>

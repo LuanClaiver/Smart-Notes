@@ -153,9 +153,12 @@ function Sidebar({
       } ${temaEscuro ? "bg-slate-950/98 border-r border-slate-800 text-white" : "bg-white border-r border-slate-200 text-slate-950"}`}
     >
       <div className="flex items-center justify-between gap-3 mb-6">
-        <div>
-          <p className="text-xs uppercase tracking-[0.25em] text-emerald-500 font-black">Smart Notes</p>
-          <h2 className="text-2xl font-black">Menu</h2>
+        <div className="flex items-center gap-3">
+          <img src="/smart-notes-logo.svg" alt="Logo Smart Notes" className="w-12 h-12 rounded-2xl shadow-lg" />
+          <div>
+            <p className="text-xs uppercase tracking-[0.25em] text-emerald-500 font-black">Smart Notes</p>
+            <h2 className="text-2xl font-black">Menu</h2>
+          </div>
         </div>
         <button onClick={() => setMenuAberto(false)} className="md:hidden bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-2xl text-white font-black transition-all">✕</button>
       </div>

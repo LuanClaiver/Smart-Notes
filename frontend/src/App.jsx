@@ -581,7 +581,7 @@ function App() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white">
         <div className="text-center animate-fade-in">
-          <div className="w-14 h-14 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <img src="/smart-notes-logo.svg" alt="Logo Smart Notes" className="w-20 h-20 rounded-[1.6rem] shadow-2xl mx-auto mb-4 animate-pulse" />
           <p className="font-bold">Carregando Smart Notes...</p>
         </div>
       </div>
@@ -641,6 +641,7 @@ function App() {
         <main className="flex-1 min-w-0">
           <header className={`mb-6 rounded-[2rem] p-5 md:p-7 border shadow-2xl animate-fade-in ${temaEscuro ? "bg-slate-900/80 border-slate-800" : "bg-white border-slate-200"}`}>
             <div className="flex items-center gap-4">
+              <img src="/smart-notes-logo.svg" alt="" className="hidden sm:block w-14 h-14 rounded-2xl shadow-lg" />
               <button onClick={() => setMenuAberto(!menuAberto)} className="md:hidden bg-emerald-600 hover:bg-emerald-700 px-4 py-3 rounded-2xl text-xl cursor-pointer transition-all text-white shadow-lg shadow-emerald-600/20">☰</button>
               <div className="min-w-0">
                 <span className="text-xs uppercase tracking-[0.25em] text-emerald-500 font-black">Smart Notes</span>
