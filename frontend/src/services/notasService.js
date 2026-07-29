@@ -74,6 +74,10 @@ export function criarSubcategoriaService(dados) {
   return axios.post(`${API_URL}/categorias/subcategorias`, dados, config());
 }
 
+export function editarSubcategoriaService(id, dados) {
+  return axios.patch(`${API_URL}/categorias/subcategorias/${id}`, dados, config());
+}
+
 export async function excluirSubcategoriaService(subcategoria) {
   const dados = typeof subcategoria === 'object' ? subcategoria : { id: subcategoria };
 

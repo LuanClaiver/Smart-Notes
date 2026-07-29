@@ -457,6 +457,7 @@ export async function criarCategoriaLocal(dados) {
 export async function criarSubcategoriaLocal(dados) {
   return mutarEstado(async (estado) => {
     const usuario = usuarioAtualNoEstado(estado);
+    exigirAdmin(usuario);
     const categoria = estado.categorias.find((item) => item.ativo && item.nome.toLowerCase() === String(dados.categoria || "").trim().toLowerCase());
     const nome = normalizarNomeExibicao(dados.nome);
     if (!categoria || !nome) throw apiError("Informe categoria e subcategoria");
@@ -468,12 +469,35 @@ export async function criarSubcategoriaLocal(dados) {
   });
 }
 
+export async function editarSubcategoriaLocal(id, dados) {
+  return mutarEstado(async (estado) => {
+    const usuario = usuarioAtualNoEstado(estado);
+    exigirAdmin(usuario);
+    const item = estado.subcategorias.find((sub) => Number(sub.id) === Number(id) && sub.ativo);
+    if (!item) throw apiError("Subcategoria não encontrada", 404);
+    const novoNome = normalizarNomeExibicao(dados.nome);
+    if (!novoNome) throw apiError("Informe o novo nome da subcategoria");
+    const duplicada = estado.subcategorias.some((sub) => sub.ativo && sub.categoriaId === item.categoriaId && Number(sub.id) !== Number(item.id) && String(sub.nome).toLowerCase() === novoNome.toLowerCase());
+    if (duplicada) throw apiError("Essa subcategoria já existe nessa categoria", 409);
+    const nomeAnterior = item.nome;
+    item.nome = novoNome;
+    item.criadoPor = usuario.id;
+    item.criadoEm = agora();
+    const categoria = estado.categorias.find((cat) => cat.id === item.categoriaId);
+    estado.notas.filter((nota) => nota.categoria === categoria?.nome && nota.subcategoria === nomeAnterior).forEach((nota) => {
+      nota.subcategoria = novoNome;
+      nota.atualizadoEm = agora();
+    });
+    return { data: { mensagem: "Subcategoria atualizada", subcategoria: { ...item, categoria: categoria?.nome || item.categoria } } };
+  });
+}
+
 export async function excluirSubcategoriaLocal(dados) {
   return mutarEstado(async (estado) => {
     const usuario = usuarioAtualNoEstado(estado);
+    exigirAdmin(usuario);
     const item = estado.subcategorias.find((sub) => Number(sub.id) === Number(dados.id)) || estado.subcategorias.find((sub) => sub.nome === dados.nome && sub.categoria === dados.categoria);
     if (!item) throw apiError("Subcategoria não encontrada", 404);
-    if (usuario.tipoUsuario !== "admin" && Number(item.criadoPor) !== Number(usuario.id)) throw apiError("Você não pode excluir essa subcategoria", 403);
     item.ativo = false;
     const categoria = estado.categorias.find((cat) => cat.id === item.categoriaId);
     estado.notas.filter((nota) => nota.categoria === categoria?.nome && nota.subcategoria === item.nome).forEach((nota) => { nota.subcategoria = ""; nota.atualizadoEm = agora(); });

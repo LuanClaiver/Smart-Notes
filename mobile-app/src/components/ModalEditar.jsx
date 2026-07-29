@@ -104,15 +104,17 @@ function ModalEditar({
             <option value="">Sem subcategoria</option>
             {subcategoriasDaCategoria.map((item) => <option key={item.id} value={item.nome}>{item.nome}</option>)}
           </select>
-          <div className="flex gap-2">
-            <input
-              value={novaSubcategoria}
-              onChange={(event) => setNovaSubcategoria(event.target.value)}
-              placeholder="Nova subcategoria"
-              className={`min-w-0 p-4 rounded-2xl border outline-none ${temaEscuro ? "bg-slate-900 border-slate-800" : "bg-slate-50 border-slate-200"}`}
-            />
-            <button type="button" onClick={adicionarSubcategoria} className="px-4 py-3 rounded-2xl bg-slate-700 hover:bg-slate-600 text-white font-black">+</button>
-          </div>
+          {usuario?.admin && (
+            <div className="flex gap-2">
+              <input
+                value={novaSubcategoria}
+                onChange={(event) => setNovaSubcategoria(event.target.value)}
+                placeholder="Nova subcategoria"
+                className={`min-w-0 p-4 rounded-2xl border outline-none ${temaEscuro ? "bg-slate-900 border-slate-800" : "bg-slate-50 border-slate-200"}`}
+              />
+              <button type="button" onClick={adicionarSubcategoria} className="px-4 py-3 rounded-2xl bg-slate-700 hover:bg-slate-600 text-white font-black">+</button>
+            </div>
+          )}
         </div>
 
         {subcategoriasDaCategoria.length > 0 && (

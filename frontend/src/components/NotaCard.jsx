@@ -3,7 +3,8 @@ function NotaCard({
   temaEscuro,
   tempoDecorrido,
   alternarFavorita,
-  setNotaSelecionada
+  setNotaSelecionada,
+  abrirImagem
 }) {
   const imagens = Array.isArray(nota.imagens) ? nota.imagens : nota.imagem ? [nota.imagem] : [];
 
@@ -61,10 +62,18 @@ function NotaCard({
             {imagens.length > 0 && (
               <div className="grid grid-cols-3 gap-2 mt-4">
                 {imagens.slice(0, 3).map((imagem, indice) => (
-                  <div key={`${imagem.slice(0, 25)}-${indice}`} className="relative">
-                    <img src={imagem} alt={`Imagem ${indice + 1}`} className="w-full h-20 object-cover rounded-2xl border border-emerald-500/30" />
-                    {indice === 2 && imagens.length > 3 && <div className="absolute inset-0 rounded-2xl bg-black/65 flex items-center justify-center text-white font-black">+{imagens.length - 3}</div>}
-                  </div>
+                  <button
+                    key={`${imagem.slice(0, 25)}-${indice}`}
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      abrirImagem?.({ src: imagem, alt: `Imagem ${indice + 1} da nota ${nota.titulo}`, nome: `smart-notes-${nota.id}-${indice + 1}` });
+                    }}
+                    className="relative cursor-zoom-in rounded-2xl overflow-hidden border border-emerald-500/30 hover:border-emerald-400 transition-all"
+                  >
+                    <img src={imagem} alt={`Imagem ${indice + 1}`} className="w-full h-20 object-cover" />
+                    {indice === 2 && imagens.length > 3 && <div className="absolute inset-0 bg-black/65 flex items-center justify-center text-white font-black">+{imagens.length - 3}</div>}
+                  </button>
                 ))}
               </div>
             )}

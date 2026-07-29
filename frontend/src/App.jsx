@@ -6,6 +6,7 @@ import {
   carregarNotasService,
   criarNotaService,
   criarSubcategoriaService,
+  editarSubcategoriaService,
   excluirSubcategoriaService,
   editarNotaService,
   excluirDefinitivamenteService,
@@ -25,6 +26,8 @@ import NotaCard from "./components/NotaCard";
 import Sidebar from "./components/Sidebar";
 import Configuracoes from "./components/Configuracoes";
 import BottomNav from "./components/BottomNav";
+import FiltroNotas from "./components/FiltroNotas";
+import VisualizadorImagem from "./components/VisualizadorImagem";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
@@ -61,6 +64,8 @@ function App() {
   const [notaParaExcluir, setNotaParaExcluir] = useState(null);
   const [carregandoAuth, setCarregandoAuth] = useState(true);
   const [carregandoNotas, setCarregandoNotas] = useState(false);
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false);
+  const [imagemVisualizada, setImagemVisualizada] = useState(null);
 
   const [temaEscuro, setTemaEscuro] = useState(() => {
     const temaSalvo = localStorage.getItem("temaEscuro");
@@ -97,6 +102,8 @@ function App() {
     setModalEditar(false);
     setModalExcluir(false);
     setTelaConfiguracoes(false);
+    setFiltrosAbertos(false);
+    setImagemVisualizada(null);
   }
 
   async function sair() {
@@ -171,6 +178,34 @@ function App() {
       return true;
     } catch (error) {
       toast.error(error.response?.data?.erro || "Erro ao criar subcategoria.");
+      return false;
+    }
+  }
+
+  async function editarSubcategoria(subcategoriaItem, novoNome) {
+    const nomeLimpo = String(novoNome || "").trim();
+    if (!subcategoriaItem?.id || !nomeLimpo) return false;
+
+    try {
+      await editarSubcategoriaService(subcategoriaItem.id, { nome: nomeLimpo });
+
+      if (
+        categoriaSelecionada === subcategoriaItem.categoria &&
+        subcategoriaSelecionada === subcategoriaItem.nome
+      ) {
+        setSubcategoriaSelecionada(nomeLimpo);
+      }
+
+      if (categoria === subcategoriaItem.categoria && subcategoria === subcategoriaItem.nome) {
+        setSubcategoria(nomeLimpo);
+      }
+
+      await carregarCategorias();
+      await carregarNotas();
+      toast.success("Subcategoria atualizada.");
+      return true;
+    } catch (error) {
+      toast.error(error.response?.data?.erro || "Erro ao editar subcategoria.");
       return false;
     }
   }
@@ -368,6 +403,7 @@ function App() {
       setSubcategoria(subcategoriaSelecionada);
     }
 
+    setFiltrosAbertos(false);
     setFormularioAberto(true);
   }
 
@@ -391,6 +427,7 @@ function App() {
     setCategoriaSelecionada("Todas");
     setSubcategoriaSelecionada("");
     setFormularioAberto(false);
+    setFiltrosAbertos(false);
     limparPesquisa();
   }
 
@@ -400,6 +437,7 @@ function App() {
     setSubcategoriaSelecionada("");
     setTelaAdminUsuarios(false);
     setTelaConfiguracoes(false);
+    setFiltrosAbertos(false);
   }
 
   function voltarParaInicio() {
@@ -410,6 +448,8 @@ function App() {
     setPesquisa("");
     setCategoriaSelecionada("Todas");
     setSubcategoriaSelecionada("");
+    setFiltrosAbertos(false);
+    setImagemVisualizada(null);
   }
 
   function abrirConfiguracoes() {
@@ -417,6 +457,7 @@ function App() {
     setTelaAdminUsuarios(false);
     setTelaConfiguracoes(true);
     setFormularioAberto(false);
+    setFiltrosAbertos(false);
     setMenuAberto(false);
   }
 
@@ -566,15 +607,12 @@ function App() {
   const pastasOrdenadas = categorias.length > 0 ? categorias : pastasPadrao;
   const dadosTelaAtual = descricoesAba[abaAtiva] || descricoesAba.minhas;
 
-  function selecionarPastaDaTela(nome) {
-    setPesquisa('');
-    setCategoriaSelecionada(nome);
-    setSubcategoriaSelecionada('');
-    setTelaAdminUsuarios(false);
-  }
-
   function totalDaPasta(nome) {
     return notasDaAba.filter((nota) => nota.categoria === nome).length;
+  }
+
+  function totalDaSubcategoria(categoriaNome, subcategoriaNome) {
+    return notasDaAba.filter((nota) => nota.categoria === categoriaNome && nota.subcategoria === subcategoriaNome).length;
   }
 
   if (carregandoAuth) {
@@ -631,6 +669,7 @@ function App() {
           setTelaConfiguracoes={setTelaConfiguracoes}
           categorias={categorias}
           subcategorias={subcategorias}
+          editarSubcategoria={editarSubcategoria}
           excluirSubcategoria={excluirSubcategoria}
           notas={notas}
           usuario={usuario}
@@ -676,63 +715,34 @@ function App() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto_auto] gap-3 items-center">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-[1fr_auto_auto_auto] gap-3 items-center">
                   <input
                     type="text"
                     placeholder={dadosTelaAtual.placeholder}
                     value={pesquisa}
-                    onChange={(event) => {
-                      const valor = event.target.value;
-                      setPesquisa(valor);
-                      if (valor.trim() !== '') {
-                        setCategoriaSelecionada('Todas');
-                        setSubcategoriaSelecionada('');
-                        setTelaAdminUsuarios(false);
-                      }
-                    }}
-                    className={`w-full p-4 rounded-2xl border outline-none transition-all ${temaEscuro ? "bg-slate-950 border-slate-800 focus:border-emerald-500" : "bg-slate-50 border-slate-200 focus:border-emerald-500"}`}
+                    onChange={(event) => setPesquisa(event.target.value)}
+                    className={`sm:col-span-2 xl:col-span-1 w-full p-4 rounded-2xl border outline-none transition-all ${temaEscuro ? "bg-slate-950 border-slate-800 focus:border-emerald-500" : "bg-slate-50 border-slate-200 focus:border-emerald-500"}`}
                   />
+                  {abaAtiva !== 'lixeira' && (
+                    <button onClick={() => setFiltrosAbertos(true)} className={`px-5 py-3 rounded-2xl font-black transition-all ${categoriaSelecionada !== "Todas" || subcategoriaSelecionada ? "bg-cyan-600 hover:bg-cyan-700 text-white" : temaEscuro ? "bg-slate-800 hover:bg-slate-700 text-white" : "bg-slate-100 hover:bg-slate-200 text-slate-900"}`}>
+                      ⚙ Filtrar{categoriaSelecionada !== "Todas" || subcategoriaSelecionada ? " • 1" : ""}
+                    </button>
+                  )}
                   <button onClick={limparFiltrosDaTela} className="px-5 py-3 rounded-2xl bg-slate-700 hover:bg-slate-600 text-white font-black transition-all">Limpar</button>
                   {abaAtiva !== 'lixeira' && (
                     <button onClick={abrirFormularioNovaNota} className="px-5 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black shadow-lg shadow-emerald-600/20 transition-all hover:-translate-y-0.5">Nova nota</button>
                   )}
                 </div>
-              </section>
 
-              {abaAtiva !== 'lixeira' && (
-                <section className={`rounded-[2rem] border p-5 mb-6 animate-fade-in ${temaEscuro ? "bg-slate-900/80 border-slate-800" : "bg-white border-slate-200"}`}>
-                  <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 mb-5">
-                    <div>
-                      <span className="text-xs uppercase tracking-[0.22em] text-emerald-500 font-black">Pastas desta tela</span>
-                      <h3 className="text-2xl font-black mt-1">Organizar por pasta</h3>
-                      <p className="text-sm text-slate-400 mt-2">Escolha uma pasta para filtrar só dentro da aba aberta.</p>
-                    </div>
-                    <button
-                      onClick={() => selecionarPastaDaTela('Todas')}
-                      className={`px-5 py-3 rounded-2xl font-black transition-all ${categoriaSelecionada === 'Todas' ? "bg-emerald-600 text-white" : temaEscuro ? "bg-slate-800 hover:bg-slate-700 text-white" : "bg-slate-100 hover:bg-slate-200 text-slate-950"}`}
-                    >
-                      Todas ({notasDaAba.length})
+                {(categoriaSelecionada !== "Todas" || subcategoriaSelecionada) && (
+                  <div className="flex flex-wrap items-center gap-2 mt-4 text-sm">
+                    <span className="text-slate-400">Filtro ativo:</span>
+                    <button type="button" onClick={() => setFiltrosAbertos(true)} className="px-3 py-2 rounded-xl bg-emerald-600/15 text-emerald-400 font-black">
+                      {categoriaSelecionada}{subcategoriaSelecionada ? ` / ${subcategoriaSelecionada}` : ""}
                     </button>
                   </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
-                    {pastasOrdenadas.map((pasta) => (
-                      <button
-                        key={pasta.id || pasta.nome}
-                        onClick={() => selecionarPastaDaTela(pasta.nome)}
-                        className={`text-left rounded-3xl p-4 border transition-all hover:-translate-y-1 ${categoriaSelecionada === pasta.nome ? "bg-emerald-600 border-emerald-500 text-white shadow-lg shadow-emerald-600/20" : temaEscuro ? "bg-slate-950/80 border-slate-800 hover:border-emerald-500/50" : "bg-slate-50 border-slate-200 hover:border-emerald-500/50"}`}
-                      >
-                        <div className="flex items-center justify-between mb-5">
-                          <span className="text-3xl">{pasta.icone || '📁'}</span>
-                          <span className={`rounded-full px-3 py-1 text-sm font-black ${categoriaSelecionada === pasta.nome ? "bg-white/20 text-white" : "bg-emerald-600/15 text-emerald-400"}`}>{totalDaPasta(pasta.nome)}</span>
-                        </div>
-                        <h3 className="font-black text-lg">{pasta.nome}</h3>
-                        <p className="text-xs opacity-70 mt-1">Abrir pasta</p>
-                      </button>
-                    ))}
-                  </div>
-                </section>
-              )}
+                )}
+              </section>
 
               {carregandoNotas ? (
                 <div className={`rounded-[2rem] p-10 text-center border ${temaEscuro ? "bg-slate-900 border-slate-800 text-slate-400" : "bg-white border-slate-200 text-slate-600"}`}>
@@ -747,7 +757,7 @@ function App() {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4">
                   {notasFiltradas.map((nota) => (
-                    <NotaCard key={nota.id} nota={nota} temaEscuro={temaEscuro} tempoDecorrido={tempoDecorrido} alternarFavorita={alternarFavorita} setNotaSelecionada={setNotaSelecionada} />
+                    <NotaCard key={nota.id} nota={nota} temaEscuro={temaEscuro} tempoDecorrido={tempoDecorrido} alternarFavorita={alternarFavorita} setNotaSelecionada={setNotaSelecionada} abrirImagem={setImagemVisualizada} />
                   ))}
                 </div>
               )}
@@ -755,6 +765,27 @@ function App() {
           )}
         </main>
       </div>
+
+      <FiltroNotas
+        aberto={filtrosAbertos}
+        onFechar={() => setFiltrosAbertos(false)}
+        temaEscuro={temaEscuro}
+        categorias={pastasOrdenadas}
+        subcategorias={subcategorias}
+        categoriaSelecionada={categoriaSelecionada}
+        subcategoriaSelecionada={subcategoriaSelecionada}
+        setCategoriaSelecionada={setCategoriaSelecionada}
+        setSubcategoriaSelecionada={setSubcategoriaSelecionada}
+        totalTodas={notasDaAba.length}
+        totalDaPasta={totalDaPasta}
+        totalDaSubcategoria={totalDaSubcategoria}
+      />
+
+      <VisualizadorImagem
+        imagem={imagemVisualizada}
+        temaEscuro={temaEscuro}
+        onFechar={() => setImagemVisualizada(null)}
+      />
 
       <BottomNav
         abaAtiva={abaAtiva}
@@ -807,6 +838,7 @@ function App() {
         restaurarNota={restaurarNota}
         excluirDefinitivamente={excluirDefinitivamente}
         atualizarNotaSelecionada={atualizarNotaSelecionada}
+        abrirImagem={setImagemVisualizada}
       />
 
       <ModalEditar

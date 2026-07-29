@@ -8,6 +8,7 @@ import {
   criarNotaLocal,
   criarObservacaoLocal,
   criarSubcategoriaLocal,
+  editarSubcategoriaLocal,
   desbloquearNotaLocal,
   editarNotaLocal,
   excluirDefinitivamenteLocal,
@@ -32,4 +33,5 @@ export const excluirObservacaoService = excluirObservacaoLocal;
 export const carregarCategoriasService = carregarCategoriasLocal;
 export const criarCategoriaService = criarCategoriaLocal;
 export const criarSubcategoriaService = criarSubcategoriaLocal;
+export const editarSubcategoriaService = editarSubcategoriaLocal;
 export const excluirSubcategoriaService = excluirSubcategoriaLocal;

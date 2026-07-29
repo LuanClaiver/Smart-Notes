@@ -22,7 +22,8 @@
     "react-dom": "19.2.7",
     "react-toastify": "11.1.0",
     "tailwindcss": "4.3.2",
-    "vite": "8.1.1"
+    "vite": "8.1.1",
+    "@capacitor/app": "8.1.1"
   },
   "devDependencies": {
     "@capacitor/cli": "8.4.0",

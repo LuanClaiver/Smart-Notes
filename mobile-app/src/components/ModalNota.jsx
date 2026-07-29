@@ -18,7 +18,8 @@ function ModalNota({
   solicitarExclusao,
   restaurarNota,
   excluirDefinitivamente,
-  atualizarNotaSelecionada
+  atualizarNotaSelecionada,
+  abrirImagem
 }) {
   const [senha, setSenha] = useState("");
   const [erroSenha, setErroSenha] = useState("");
@@ -162,7 +163,15 @@ function ModalNota({
                   <h3 className="text-sm uppercase tracking-[0.18em] text-emerald-500 font-black mb-3">Imagens anexadas</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {imagens.map((imagem, indice) => (
-                      <img key={`${imagem.slice(0, 30)}-${indice}`} src={imagem} alt={`Imagem ${indice + 1}`} className={`w-full max-h-80 object-contain rounded-3xl border p-2 ${temaEscuro ? "bg-slate-900 border-slate-800" : "bg-slate-50 border-slate-200"}`} />
+                      <button
+                        key={`${imagem.slice(0, 30)}-${indice}`}
+                        type="button"
+                        onClick={() => abrirImagem?.({ src: imagem, alt: `Imagem ${indice + 1} da nota ${notaSelecionada.titulo}`, nome: `smart-notes-${notaSelecionada.id}-${indice + 1}` })}
+                        className={`group relative w-full rounded-3xl border p-2 cursor-zoom-in transition-all hover:border-emerald-500 ${temaEscuro ? "bg-slate-900 border-slate-800" : "bg-slate-50 border-slate-200"}`}
+                      >
+                        <img src={imagem} alt={`Imagem ${indice + 1}`} className="w-full max-h-80 object-contain rounded-2xl" />
+                        <span className="absolute inset-x-4 bottom-4 rounded-xl bg-black/70 px-3 py-2 text-xs text-white font-black opacity-0 group-hover:opacity-100 transition-opacity">Toque para ampliar</span>
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -214,7 +223,20 @@ function ModalNota({
                       {observacao.podeExcluir && <button onClick={() => removerObservacao(observacao.id)} className="text-red-400 font-black">Remover</button>}
                     </div>
                     <p className="whitespace-pre-wrap text-slate-300 mb-3">{observacao.texto}</p>
-                    {observacao.imagens?.length > 0 && <div className="grid grid-cols-2 md:grid-cols-3 gap-2">{observacao.imagens.map((imagem, indice) => <img key={`${observacao.id}-${indice}`} src={imagem} className="w-full h-32 object-cover rounded-2xl border border-emerald-500/30" />)}</div>}
+                    {observacao.imagens?.length > 0 && (
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                        {observacao.imagens.map((imagem, indice) => (
+                          <button
+                            key={`${observacao.id}-${indice}`}
+                            type="button"
+                            onClick={() => abrirImagem?.({ src: imagem, alt: `Imagem da observação de ${observacao.autorNome}`, nome: `smart-notes-observacao-${observacao.id}-${indice + 1}` })}
+                            className="rounded-2xl overflow-hidden border border-emerald-500/30 cursor-zoom-in hover:border-emerald-400 transition-all"
+                          >
+                            <img src={imagem} alt={`Imagem ${indice + 1} da observação`} className="w-full h-32 object-cover" />
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </article>
                 ))}
               </div>

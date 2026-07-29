@@ -680,7 +680,7 @@ app.post("/categorias", autenticar, (req, res) => {
   res.status(201).json({ mensagem: "Categoria criada" });
 });
 
-app.post("/categorias/subcategorias", autenticar, (req, res) => {
+app.post("/categorias/subcategorias", autenticar, exigirAdmin, (req, res) => {
   const categoria = String(req.body.categoria || "").trim();
   const nome = String(req.body.nome || "").trim();
 
@@ -733,6 +733,61 @@ app.post("/categorias/subcategorias", autenticar, (req, res) => {
   }
 
   res.status(201).json({ mensagem: "Subcategoria criada" });
+});
+
+app.patch("/categorias/subcategorias/:id", autenticar, exigirAdmin, (req, res) => {
+  const id = Number(req.params.id);
+  const novoNome = String(req.body.nome || "").trim();
+
+  if (!id || !novoNome) {
+    return res.status(400).json({ erro: "Informe a subcategoria e o novo nome" });
+  }
+
+  const subcategoria = db.prepare(`
+    SELECT subcategorias.*, categorias.nome AS categoria
+    FROM subcategorias
+    JOIN categorias ON categorias.id = subcategorias.categoriaId
+    WHERE subcategorias.id = ?
+    AND subcategorias.ativo = 1
+  `).get(id);
+
+  if (!subcategoria) {
+    return res.status(404).json({ erro: "Subcategoria não encontrada" });
+  }
+
+  const duplicada = db.prepare(`
+    SELECT id
+    FROM subcategorias
+    WHERE categoriaId = ?
+    AND ativo = 1
+    AND id <> ?
+    AND lower(trim(nome)) = lower(trim(?))
+  `).get(subcategoria.categoriaId, id, novoNome);
+
+  if (duplicada) {
+    return res.status(409).json({ erro: "Essa subcategoria já existe nessa categoria" });
+  }
+
+  const nomeAnterior = String(subcategoria.nome || "").trim();
+  const agora = new Date().toISOString();
+
+  const transacao = db.transaction(() => {
+    db.prepare(`
+      UPDATE subcategorias
+      SET nome = ?, criadoPor = ?, criadoEm = ?
+      WHERE id = ?
+    `).run(novoNome, req.usuario.id, agora, id);
+
+    db.prepare(`
+      UPDATE notas
+      SET subcategoria = ?, atualizadoEm = ?
+      WHERE lower(trim(COALESCE(categoria, ''))) = lower(trim(?))
+      AND lower(trim(COALESCE(subcategoria, ''))) = lower(trim(?))
+    `).run(novoNome, agora, subcategoria.categoria, nomeAnterior);
+  });
+
+  transacao();
+  res.json({ mensagem: "Subcategoria atualizada", subcategoria: { ...subcategoria, nome: novoNome } });
 });
 
 function localizarSubcategoria(dados) {
@@ -821,7 +876,7 @@ function excluirSubcategoriaComSeguranca(dados) {
   return { mensagem: 'Subcategoria excluída sem apagar as notas' };
 }
 
-app.delete('/categorias/subcategorias/:id', autenticar, (req, res) => {
+app.delete('/categorias/subcategorias/:id', autenticar, exigirAdmin, (req, res) => {
   try {
     const resultado = excluirSubcategoriaComSeguranca({ id: req.params.id });
 
@@ -836,7 +891,7 @@ app.delete('/categorias/subcategorias/:id', autenticar, (req, res) => {
   }
 });
 
-app.post('/categorias/subcategorias/excluir', autenticar, (req, res) => {
+app.post('/categorias/subcategorias/excluir', autenticar, exigirAdmin, (req, res) => {
   try {
     const resultado = excluirSubcategoriaComSeguranca(req.body || {});
 

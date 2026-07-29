@@ -19,6 +19,7 @@ function Sidebar({
   setTelaConfiguracoes,
   categorias,
   subcategorias,
+  editarSubcategoria,
   excluirSubcategoria,
   notas,
   limparPesquisa,
@@ -29,6 +30,9 @@ function Sidebar({
   const [pastasExpandidas, setPastasExpandidas] = useState({});
   const [gerenciarSubcategoriasAberto, setGerenciarSubcategoriasAberto] = useState(false);
   const [categoriasGerenciamentoAbertas, setCategoriasGerenciamentoAbertas] = useState({});
+  const [subcategoriaEditandoId, setSubcategoriaEditandoId] = useState(null);
+  const [nomeSubcategoriaEditando, setNomeSubcategoriaEditando] = useState("");
+  const [salvandoSubcategoria, setSalvandoSubcategoria] = useState(false);
 
   useEffect(() => {
     function fecharComEsc(event) {
@@ -113,6 +117,27 @@ function Sidebar({
       ...atual,
       [categoria]: !atual[categoria]
     }));
+  }
+
+  function iniciarEdicaoSubcategoria(subcategoria) {
+    setSubcategoriaEditandoId(subcategoria.id);
+    setNomeSubcategoriaEditando(subcategoria.nome);
+  }
+
+  function cancelarEdicaoSubcategoria() {
+    setSubcategoriaEditandoId(null);
+    setNomeSubcategoriaEditando("");
+  }
+
+  async function salvarEdicaoSubcategoria(subcategoria) {
+    const nome = nomeSubcategoriaEditando.trim();
+    if (!nome || salvandoSubcategoria) return;
+
+    setSalvandoSubcategoria(true);
+    const atualizada = await editarSubcategoria(subcategoria, nome);
+    setSalvandoSubcategoria(false);
+
+    if (atualizada) cancelarEdicaoSubcategoria();
   }
 
   function totalCategoria(categoria, subcategoria = "") {
@@ -323,6 +348,7 @@ function Sidebar({
         );
       })}
 
+      {usuario?.admin && (
       <div className={`mt-6 rounded-3xl border overflow-hidden ${temaEscuro ? "bg-slate-900/80 border-slate-800" : "bg-slate-50 border-slate-200"}`}>
         <button
           type="button"
@@ -365,32 +391,57 @@ function Sidebar({
 
                   {categoriaAberta && (
                     <div className="space-y-2 px-3 pb-3">
-                      {subcategoriasDaPasta.map((subcategoria) => (
-                        <div key={`excluir-${subcategoria.id}`} className={`flex items-center gap-2 rounded-2xl p-2 ${temaEscuro ? "bg-slate-900/80" : "bg-slate-50"}`}>
-                          <button
-                            type="button"
-                            onClick={() => selecionarCategoria(categoria.nome, subcategoria.nome)}
-                            className={`flex-1 min-w-0 text-left px-3 py-2 rounded-xl text-sm font-bold transition-all ${
-                              telaAtual === "notas" && !telaAdminUsuarios && !telaConfiguracoes && subcategoriaSelecionada === subcategoria.nome && categoriaSelecionada === categoria.nome
-                                ? "bg-cyan-600 text-white ring-2 ring-cyan-300/30"
-                                : temaEscuro ? "text-slate-300 hover:bg-slate-800" : "text-slate-700 hover:bg-slate-100"
-                            }`}
-                          >
-                            🧩 {subcategoria.nome}
-                          </button>
-                          <button
-                            type="button"
-                            title="Excluir subcategoria"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              excluirSubcategoria(subcategoria);
-                            }}
-                            className="shrink-0 px-3 py-2 rounded-xl text-sm bg-red-600 hover:bg-red-700 text-white font-black transition-all"
-                          >
-                            Excluir
-                          </button>
-                        </div>
-                      ))}
+                      {subcategoriasDaPasta.map((subcategoria) => {
+                        const editando = subcategoriaEditandoId === subcategoria.id;
+
+                        return (
+                          <div key={`gerenciar-subcategoria-${subcategoria.id}`} className={`rounded-2xl p-2 ${temaEscuro ? "bg-slate-900/80" : "bg-slate-50"}`}>
+                            {editando ? (
+                              <div className="grid grid-cols-1 gap-2">
+                                <input
+                                  value={nomeSubcategoriaEditando}
+                                  onChange={(event) => setNomeSubcategoriaEditando(event.target.value)}
+                                  onKeyDown={(event) => {
+                                    if (event.key === "Enter") salvarEdicaoSubcategoria(subcategoria);
+                                    if (event.key === "Escape") cancelarEdicaoSubcategoria();
+                                  }}
+                                  autoFocus
+                                  className={`w-full min-w-0 px-3 py-3 rounded-xl border outline-none focus:border-emerald-500 ${temaEscuro ? "bg-slate-950 border-slate-700 text-white" : "bg-white border-slate-200 text-slate-900"}`}
+                                />
+                                <div className="grid grid-cols-2 gap-2">
+                                  <button type="button" disabled={salvandoSubcategoria} onClick={() => salvarEdicaoSubcategoria(subcategoria)} className="px-3 py-2 rounded-xl text-sm bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-black">
+                                    {salvandoSubcategoria ? "Salvando..." : "Salvar"}
+                                  </button>
+                                  <button type="button" onClick={cancelarEdicaoSubcategoria} className="px-3 py-2 rounded-xl text-sm bg-slate-700 hover:bg-slate-600 text-white font-black">Cancelar</button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => selecionarCategoria(categoria.nome, subcategoria.nome)}
+                                  className={`flex-1 min-w-0 text-left px-3 py-2 rounded-xl text-sm font-bold transition-all ${
+                                    telaAtual === "notas" && !telaAdminUsuarios && !telaConfiguracoes && subcategoriaSelecionada === subcategoria.nome && categoriaSelecionada === categoria.nome
+                                      ? "bg-cyan-600 text-white ring-2 ring-cyan-300/30"
+                                      : temaEscuro ? "text-slate-300 hover:bg-slate-800" : "text-slate-700 hover:bg-slate-100"
+                                  }`}
+                                >
+                                  🧩 {subcategoria.nome}
+                                </button>
+                                <button type="button" title="Editar subcategoria" onClick={() => iniciarEdicaoSubcategoria(subcategoria)} className="shrink-0 px-3 py-2 rounded-xl text-sm bg-amber-500 hover:bg-amber-600 text-slate-950 font-black transition-all">Editar</button>
+                                <button
+                                  type="button"
+                                  title="Excluir subcategoria"
+                                  onClick={() => excluirSubcategoria(subcategoria)}
+                                  className="shrink-0 px-3 py-2 rounded-xl text-sm bg-red-600 hover:bg-red-700 text-white font-black transition-all"
+                                >
+                                  Excluir
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -403,6 +454,7 @@ function Sidebar({
           </div>
         )}
       </div>
+      )}
     </aside>
   );
 }
