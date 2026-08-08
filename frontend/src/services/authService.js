@@ -33,6 +33,8 @@ export const editarUsuarioAdminService = (id, dados) => axios.put(`${API_URL}/ad
 
 export const alterarSenhaUsuarioAdminService = (id, dados) => axios.patch(`${API_URL}/admin/usuarios/${id}/senha`, dados, config());
 
+export const excluirUsuarioAdminService = (id, dados) => axios.delete(`${API_URL}/admin/usuarios/${id}`, { ...config(), data: dados });
+
 export const logoutService = (token) =>
   axios.post(
     `${API_URL}/auth/logout`,

@@ -7,20 +7,17 @@ function Sidebar({
   setTemaEscuro,
   abaAtiva,
   telaAtual,
-  telaAdminUsuarios,
-  telaConfiguracoes,
+  telaConfiguracoes, telaPendencias, abrirPendencias,
   selecionarAba,
   voltarParaInicio,
   categoriaSelecionada,
   setCategoriaSelecionada,
   subcategoriaSelecionada,
   setSubcategoriaSelecionada,
-  setTelaAdminUsuarios,
   setTelaConfiguracoes,
+  setTelaPendencias,
   categorias,
   subcategorias,
-  editarSubcategoria,
-  excluirSubcategoria,
   notas,
   limparPesquisa,
   usuario,
@@ -28,11 +25,6 @@ function Sidebar({
   sair
 }) {
   const [pastasExpandidas, setPastasExpandidas] = useState({});
-  const [gerenciarSubcategoriasAberto, setGerenciarSubcategoriasAberto] = useState(false);
-  const [categoriasGerenciamentoAbertas, setCategoriasGerenciamentoAbertas] = useState({});
-  const [subcategoriaEditandoId, setSubcategoriaEditandoId] = useState(null);
-  const [nomeSubcategoriaEditando, setNomeSubcategoriaEditando] = useState("");
-  const [salvandoSubcategoria, setSalvandoSubcategoria] = useState(false);
 
   useEffect(() => {
     function fecharComEsc(event) {
@@ -83,8 +75,8 @@ function Sidebar({
 
   function resetarFiltros() {
     limparPesquisa();
-    setTelaAdminUsuarios(false);
     setTelaConfiguracoes(false);
+    setTelaPendencias(false);
   }
 
   function selecionarCategoria(categoria, subcategoria = "", fecharMenu = true) {
@@ -112,34 +104,6 @@ function Sidebar({
     }));
   }
 
-  function alternarCategoriaGerenciamento(categoria) {
-    setCategoriasGerenciamentoAbertas((atual) => ({
-      ...atual,
-      [categoria]: !atual[categoria]
-    }));
-  }
-
-  function iniciarEdicaoSubcategoria(subcategoria) {
-    setSubcategoriaEditandoId(subcategoria.id);
-    setNomeSubcategoriaEditando(subcategoria.nome);
-  }
-
-  function cancelarEdicaoSubcategoria() {
-    setSubcategoriaEditandoId(null);
-    setNomeSubcategoriaEditando("");
-  }
-
-  async function salvarEdicaoSubcategoria(subcategoria) {
-    const nome = nomeSubcategoriaEditando.trim();
-    if (!nome || salvandoSubcategoria) return;
-
-    setSalvandoSubcategoria(true);
-    const atualizada = await editarSubcategoria(subcategoria, nome);
-    setSalvandoSubcategoria(false);
-
-    if (atualizada) cancelarEdicaoSubcategoria();
-  }
-
   function totalCategoria(categoria, subcategoria = "") {
     return notas.filter((nota) => {
       if (!notaPertenceAba(nota)) return false;
@@ -150,8 +114,7 @@ function Sidebar({
     }).length;
   }
 
-  const paginaInicialAtiva = telaAtual === "inicio" && !telaAdminUsuarios && !telaConfiguracoes;
-  const paginaUsuariosAtiva = Boolean(telaAdminUsuarios);
+  const paginaInicialAtiva = telaAtual === "inicio" && !telaConfiguracoes && !telaPendencias;
   const paginaConfiguracoesAtiva = Boolean(telaConfiguracoes);
 
   function classeMenuPrincipal(ativo, destaque = "emerald") {
@@ -178,12 +141,44 @@ function Sidebar({
       } ${temaEscuro ? "bg-slate-950/98 border-r border-slate-800 text-white" : "bg-white border-r border-slate-200 text-slate-950"}`}
     >
       <div className="flex items-center justify-between gap-3 mb-6">
-        <div className="flex items-center gap-3">
-          <img src="/smart-notes-logo.svg" alt="Logo Smart Notes" className="w-12 h-12 rounded-2xl shadow-lg" />
-          <div>
-            <p className="text-xs uppercase tracking-[0.25em] text-emerald-500 font-black">Smart Notes</p>
-            <h2 className="text-2xl font-black">Menu</h2>
+        <div className="grid grid-cols-[3rem_minmax(0,1fr)_3rem] items-center gap-3 min-w-0 flex-1">
+          <button
+            type="button"
+            onClick={() => {
+              voltarParaInicio();
+              setMenuAberto(false);
+            }}
+            aria-label="Voltar para a tela inicial"
+            title="Voltar para a tela inicial"
+            className="w-12 h-12 shrink-0 rounded-2xl transition-transform hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+          >
+            <img src="/smart-notes-logo.svg" alt="Logo Smart Notes" className="w-12 h-12 rounded-2xl shadow-lg" />
+          </button>
+
+          <div className="min-w-0">
+            <p className="text-xs uppercase tracking-[0.25em] text-emerald-500 font-black truncate">Smart Notes</p>
+            <h2 className="text-2xl font-black leading-tight">Menu</h2>
           </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              voltarParaInicio();
+              setMenuAberto(false);
+            }}
+            aria-label="Ir para a tela inicial"
+            title="Tela inicial"
+            aria-current={paginaInicialAtiva ? "page" : undefined}
+            className={`w-12 h-12 shrink-0 rounded-2xl flex items-center justify-center text-[1.9rem] leading-none transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 ${
+              paginaInicialAtiva
+                ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/20"
+                : temaEscuro
+                  ? "bg-slate-900 hover:bg-slate-800 text-slate-200"
+                  : "bg-slate-100 hover:bg-slate-200 text-slate-800"
+            }`}
+          >
+            🏠
+          </button>
         </div>
         <button onClick={() => setMenuAberto(false)} className="md:hidden bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-2xl text-white font-black transition-all">✕</button>
       </div>
@@ -213,39 +208,13 @@ function Sidebar({
         <button onClick={sair} className="p-3 rounded-2xl font-black bg-red-600 hover:bg-red-700 text-white transition-all">Sair</button>
       </div>
 
-      <button
-        onClick={() => {
-          voltarParaInicio();
-          setMenuAberto(false);
-        }}
-        aria-current={paginaInicialAtiva ? "page" : undefined}
-        className={`w-full p-3 rounded-2xl cursor-pointer transition-all font-black mb-5 ${classeMenuPrincipal(paginaInicialAtiva)}`}
-      >
-        🏠 Tela inicial {paginaInicialAtiva && <span className="float-right">●</span>}
-      </button>
-
-      {usuario?.admin && (
-        <button
-          onClick={() => {
-            resetarFiltros();
-            setTelaAdminUsuarios(true);
-            setTelaConfiguracoes(false);
-            setCategoriaSelecionada("Todas");
-            setSubcategoriaSelecionada("");
-            setMenuAberto(false);
-          }}
-          aria-current={paginaUsuariosAtiva ? "page" : undefined}
-          className={`w-full p-3 rounded-2xl cursor-pointer transition-all font-black mb-3 ${classeMenuPrincipal(paginaUsuariosAtiva, "amber")}`}
-        >
-          👑 Gerenciar usuários {paginaUsuariosAtiva && <span className="float-right">●</span>}
-        </button>
-      )}
+      <button onClick={abrirPendencias} className={`w-full mb-2 p-4 rounded-2xl font-black text-left transition-all ${classeMenuPrincipal(telaPendencias)}`}>✅ Pendências</button>
 
       <button
         onClick={() => {
           resetarFiltros();
-          setTelaAdminUsuarios(false);
-          setTelaConfiguracoes(true);
+                setTelaConfiguracoes(true);
+          setTelaPendencias(false);
           setMenuAberto(false);
         }}
         aria-current={paginaConfiguracoesAtiva ? "page" : undefined}
@@ -261,7 +230,7 @@ function Sidebar({
             key={aba.id}
             onClick={() => abrirAba(aba.id)}
             className={`w-full text-left p-3 rounded-2xl cursor-pointer transition-all hover:-translate-y-0.5 ${
-              telaAtual === "notas" && !telaAdminUsuarios && !telaConfiguracoes && abaAtiva === aba.id
+              telaAtual === "notas" && !telaConfiguracoes && abaAtiva === aba.id
                 ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/20 ring-2 ring-emerald-300/30"
                 : temaEscuro ? "bg-slate-900 hover:bg-slate-800 text-white" : "bg-slate-100 hover:bg-slate-200 text-slate-950"
             }`}
@@ -274,7 +243,7 @@ function Sidebar({
         <button
           onClick={() => abrirAba("lixeira")}
           className={`w-full text-left px-3 py-2 rounded-2xl cursor-pointer transition-all text-sm ${
-            telaAtual === "notas" && !telaAdminUsuarios && !telaConfiguracoes && abaAtiva === "lixeira"
+            telaAtual === "notas" && !telaConfiguracoes && abaAtiva === "lixeira"
               ? "bg-red-600 text-white shadow-lg shadow-red-600/20 ring-2 ring-red-300/30"
               : temaEscuro ? "bg-slate-900/70 hover:bg-slate-800 text-slate-300" : "bg-slate-100 hover:bg-slate-200 text-slate-700"
           }`}
@@ -289,13 +258,14 @@ function Sidebar({
       {categoriasComTodas.map((categoria) => {
         const subcategoriasDaPasta = subcategorias.filter((item) => item.categoria === categoria.nome);
         const temSubcategorias = categoria.nome !== "Todas" && subcategoriasDaPasta.length > 0;
-        const pastaAberta = pastasExpandidas[categoria.nome] || categoriaSelecionada === categoria.nome;
+        const temEstadoExpansao = Object.prototype.hasOwnProperty.call(pastasExpandidas, categoria.nome);
+        const pastaAberta = temEstadoExpansao ? pastasExpandidas[categoria.nome] : categoriaSelecionada === categoria.nome;
 
         return (
           <div key={categoria.id || categoria.nome} className="mb-2">
             <div
               className={`flex items-center gap-2 rounded-2xl transition-all ${
-                telaAtual === "notas" && !telaAdminUsuarios && !telaConfiguracoes && categoriaSelecionada === categoria.nome && !subcategoriaSelecionada
+                telaAtual === "notas" && !telaConfiguracoes && categoriaSelecionada === categoria.nome && !subcategoriaSelecionada
                   ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/20 ring-2 ring-emerald-300/30"
                   : temaEscuro ? "bg-slate-900 hover:bg-slate-800 text-white" : "bg-slate-100 hover:bg-slate-200 text-slate-950"
               }`}
@@ -333,7 +303,7 @@ function Sidebar({
                     key={subcategoria.id}
                     onClick={() => selecionarCategoria(categoria.nome, subcategoria.nome)}
                     className={`w-full min-w-0 text-left px-3 py-2 rounded-xl text-sm transition-all ${
-                      telaAtual === "notas" && !telaAdminUsuarios && !telaConfiguracoes && subcategoriaSelecionada === subcategoria.nome && categoriaSelecionada === categoria.nome
+                      telaAtual === "notas" && !telaConfiguracoes && subcategoriaSelecionada === subcategoria.nome && categoriaSelecionada === categoria.nome
                         ? "bg-cyan-600 text-white ring-2 ring-cyan-300/30"
                         : temaEscuro ? "bg-slate-900/70 hover:bg-slate-800 text-slate-300" : "bg-slate-100 hover:bg-slate-200 text-slate-700"
                     }`}
@@ -348,113 +318,6 @@ function Sidebar({
         );
       })}
 
-      {usuario?.admin && (
-      <div className={`mt-6 rounded-3xl border overflow-hidden ${temaEscuro ? "bg-slate-900/80 border-slate-800" : "bg-slate-50 border-slate-200"}`}>
-        <button
-          type="button"
-          onClick={() => setGerenciarSubcategoriasAberto(!gerenciarSubcategoriasAberto)}
-          className={`w-full flex items-center justify-between gap-3 p-4 text-left transition-all ${
-            temaEscuro ? "hover:bg-slate-800 text-white" : "hover:bg-slate-100 text-slate-950"
-          }`}
-        >
-          <span>
-            <span className="block text-sm uppercase tracking-[0.18em] text-red-400 font-black">Gerenciar subcategorias</span>
-            <span className="block text-xs text-slate-400 mt-1">Abrir somente quando precisar editar ou excluir</span>
-          </span>
-          <span className="text-xl font-black">{gerenciarSubcategoriasAberto ? "⌃" : "⌄"}</span>
-        </button>
-
-        {gerenciarSubcategoriasAberto && (
-          <div className="p-4 pt-0">
-            <p className="text-xs text-slate-400 leading-relaxed mb-4">
-              As notas não são apagadas. Ao excluir uma subcategoria, a nota fica apenas na pasta principal.
-            </p>
-
-            {categorias.filter((categoria) => subcategorias.some((item) => item.categoria === categoria.nome)).map((categoria) => {
-              const subcategoriasDaPasta = subcategorias.filter((item) => item.categoria === categoria.nome);
-              const categoriaAberta = categoriasGerenciamentoAbertas[categoria.nome];
-
-              return (
-                <div key={`gerenciar-${categoria.id || categoria.nome}`} className={`mb-3 rounded-2xl overflow-hidden ${temaEscuro ? "bg-slate-950/70" : "bg-white"}`}>
-                  <button
-                    type="button"
-                    onClick={() => alternarCategoriaGerenciamento(categoria.nome)}
-                    className={`w-full flex items-center justify-between gap-3 px-3 py-3 text-left transition-all ${
-                      temaEscuro ? "hover:bg-slate-800 text-slate-200" : "hover:bg-slate-100 text-slate-800"
-                    }`}
-                  >
-                    <span className="text-sm font-black">{categoria.icone || "📁"} {categoria.nome}</span>
-                    <span className="text-xs font-black opacity-70">
-                      {subcategoriasDaPasta.length} {categoriaAberta ? "⌃" : "⌄"}
-                    </span>
-                  </button>
-
-                  {categoriaAberta && (
-                    <div className="space-y-2 px-3 pb-3">
-                      {subcategoriasDaPasta.map((subcategoria) => {
-                        const editando = subcategoriaEditandoId === subcategoria.id;
-
-                        return (
-                          <div key={`gerenciar-subcategoria-${subcategoria.id}`} className={`rounded-2xl p-2 ${temaEscuro ? "bg-slate-900/80" : "bg-slate-50"}`}>
-                            {editando ? (
-                              <div className="grid grid-cols-1 gap-2">
-                                <input
-                                  value={nomeSubcategoriaEditando}
-                                  onChange={(event) => setNomeSubcategoriaEditando(event.target.value)}
-                                  onKeyDown={(event) => {
-                                    if (event.key === "Enter") salvarEdicaoSubcategoria(subcategoria);
-                                    if (event.key === "Escape") cancelarEdicaoSubcategoria();
-                                  }}
-                                  autoFocus
-                                  className={`w-full min-w-0 px-3 py-3 rounded-xl border outline-none focus:border-emerald-500 ${temaEscuro ? "bg-slate-950 border-slate-700 text-white" : "bg-white border-slate-200 text-slate-900"}`}
-                                />
-                                <div className="grid grid-cols-2 gap-2">
-                                  <button type="button" disabled={salvandoSubcategoria} onClick={() => salvarEdicaoSubcategoria(subcategoria)} className="px-3 py-2 rounded-xl text-sm bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-black">
-                                    {salvandoSubcategoria ? "Salvando..." : "Salvar"}
-                                  </button>
-                                  <button type="button" onClick={cancelarEdicaoSubcategoria} className="px-3 py-2 rounded-xl text-sm bg-slate-700 hover:bg-slate-600 text-white font-black">Cancelar</button>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => selecionarCategoria(categoria.nome, subcategoria.nome)}
-                                  className={`flex-1 min-w-0 text-left px-3 py-2 rounded-xl text-sm font-bold transition-all ${
-                                    telaAtual === "notas" && !telaAdminUsuarios && !telaConfiguracoes && subcategoriaSelecionada === subcategoria.nome && categoriaSelecionada === categoria.nome
-                                      ? "bg-cyan-600 text-white ring-2 ring-cyan-300/30"
-                                      : temaEscuro ? "text-slate-300 hover:bg-slate-800" : "text-slate-700 hover:bg-slate-100"
-                                  }`}
-                                >
-                                  🧩 {subcategoria.nome}
-                                </button>
-                                <button type="button" title="Editar subcategoria" onClick={() => iniciarEdicaoSubcategoria(subcategoria)} className="shrink-0 px-3 py-2 rounded-xl text-sm bg-amber-500 hover:bg-amber-600 text-slate-950 font-black transition-all">Editar</button>
-                                <button
-                                  type="button"
-                                  title="Excluir subcategoria"
-                                  onClick={() => excluirSubcategoria(subcategoria)}
-                                  className="shrink-0 px-3 py-2 rounded-xl text-sm bg-red-600 hover:bg-red-700 text-white font-black transition-all"
-                                >
-                                  Excluir
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-
-            {subcategorias.length === 0 && (
-              <p className="text-sm text-slate-400">Nenhuma subcategoria cadastrada ainda.</p>
-            )}
-          </div>
-        )}
-      </div>
-      )}
     </aside>
   );
 }

@@ -1,0 +1,2 @@
+import {listarPendenciasLocal,criarPendenciaLocal,editarPendenciaLocal,moverPendenciaLocal,excluirPendenciaLocal} from "./mobileStore";
+export const listarPendenciasService=listarPendenciasLocal;export const criarPendenciaService=criarPendenciaLocal;export const editarPendenciaService=editarPendenciaLocal;export const moverPendenciaService=moverPendenciaLocal;export const excluirPendenciaService=excluirPendenciaLocal;

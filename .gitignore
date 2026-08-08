@@ -25,10 +25,13 @@ backend/.smart-notes-import-pending.*
 .env.*
 
 # Arquivos auxiliares que não pertencem ao repositório
-*.bat
+
 *.txt
 *.log
 .vscode/
 .idea/
 .DS_Store
 Thumbs.db
+
+!Iniciar Smart Notes.bat
+!Enviar para GitHub.bat

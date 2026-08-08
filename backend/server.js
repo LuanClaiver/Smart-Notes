@@ -46,17 +46,25 @@ function conferirSenha(senha, senhaHash) {
   }
 
   const [salt, hashOriginal] = partes;
+  const hashLimpo = String(hashOriginal || "").trim().toLowerCase();
+  // O aplicativo mobile usa PBKDF2/SHA-256 (32 bytes) e o desktop usa
+  // PBKDF2/SHA-512 (64 bytes). Aceitar os dois formatos mantém as senhas
+  // válidas ao importar um backup JSON gerado no celular.
+  const formatoMobile = /^[0-9a-f]{64}$/.test(hashLimpo);
+  const formatoDesktop = /^[0-9a-f]{128}$/.test(hashLimpo);
+  if (!formatoMobile && !formatoDesktop) return false;
+
   const hashDigitado = pbkdf2Sync(
     senha,
     salt,
     100000,
-    64,
-    "sha512"
+    formatoMobile ? 32 : 64,
+    formatoMobile ? "sha256" : "sha512"
   ).toString("hex");
 
   try {
     return timingSafeEqual(
-      Buffer.from(hashOriginal, "hex"),
+      Buffer.from(hashLimpo, "hex"),
       Buffer.from(hashDigitado, "hex")
     );
   } catch (error) {
@@ -81,7 +89,8 @@ function normalizarUsuario(usuario) {
     admin: tipoUsuario === "admin",
     ativo: Boolean(usuario.ativo),
     criadoEm: usuario.criadoEm,
-    ultimoLogin: usuario.ultimoLogin
+    ultimoLogin: usuario.ultimoLogin,
+    totalNotas: Number(usuario.totalNotas || 0)
   };
 }
 
@@ -189,6 +198,7 @@ function normalizarNota(nota, usuarioLogado) {
     usuarioId: nota.usuarioId,
     autorNome: nota.autorNome || "Usuário",
     autorEmail: nota.autorEmail || "",
+    autorFoto: nota.autorFoto || "",
     titulo: nota.titulo,
     conteudo: bloqueada ? "Esta nota compartilhada é protegida por senha." : nota.conteudo,
     categoria: nota.categoria,
@@ -302,7 +312,8 @@ function buscarNotaVisivel(id, usuario) {
       SELECT
         notas.*,
         usuarios.nome AS autorNome,
-        usuarios.email AS autorEmail
+        usuarios.email AS autorEmail,
+        usuarios.fotoPerfil AS autorFoto
       FROM notas
       JOIN usuarios ON usuarios.id = notas.usuarioId
       WHERE notas.id = ?
@@ -342,7 +353,7 @@ app.get("/status", (req, res) => {
   res.json({
     online: true,
     app: "Smart Notes",
-    versao: "1.4.4"
+    versao: "1.5.4"
   });
 });
 
@@ -554,9 +565,19 @@ app.put("/usuarios/perfil", autenticar, (req, res) => {
 
 app.get("/admin/usuarios", autenticar, exigirAdmin, (req, res) => {
   const usuarios = db.prepare(`
-    SELECT id, nome, usuario, email, fotoPerfil, tipoUsuario, criadoEm, ultimoLogin, ativo
+    SELECT
+      usuarios.id,
+      usuarios.nome,
+      usuarios.usuario,
+      usuarios.email,
+      usuarios.fotoPerfil,
+      usuarios.tipoUsuario,
+      usuarios.criadoEm,
+      usuarios.ultimoLogin,
+      usuarios.ativo,
+      (SELECT COUNT(*) FROM notas WHERE notas.usuarioId = usuarios.id) AS totalNotas
     FROM usuarios
-    ORDER BY ativo DESC, nome
+    ORDER BY usuarios.ativo DESC, usuarios.nome
   `).all();
 
   res.json(usuarios.map(normalizarUsuario));
@@ -636,6 +657,63 @@ app.patch("/admin/usuarios/:id/senha", autenticar, exigirAdmin, (req, res) => {
 
   db.prepare("UPDATE usuarios SET senhaHash = ? WHERE id = ?").run(gerarHashSenha(novaSenha), id);
   res.json({ mensagem: "Senha alterada pelo administrador" });
+});
+
+
+
+app.delete("/admin/usuarios/:id", autenticar, exigirAdmin, (req, res) => {
+  const id = Number(req.params.id);
+  const responsavelId = Number(req.body?.responsavelId || req.usuario.id);
+
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ erro: "Usuário inválido" });
+  }
+
+  if (id === Number(req.usuario.id)) {
+    return res.status(400).json({ erro: "Você não pode excluir o usuário que está conectado" });
+  }
+
+  if (!Number.isInteger(responsavelId) || responsavelId <= 0 || responsavelId === id) {
+    return res.status(400).json({ erro: "Selecione outro usuário ativo para receber as notas" });
+  }
+
+  const usuario = db.prepare("SELECT id, nome FROM usuarios WHERE id = ?").get(id);
+  if (!usuario) {
+    return res.status(404).json({ erro: "Usuário não encontrado" });
+  }
+
+  const responsavel = db.prepare("SELECT id, nome FROM usuarios WHERE id = ? AND ativo = 1").get(responsavelId);
+  if (!responsavel) {
+    return res.status(404).json({ erro: "Responsável não encontrado ou inativo" });
+  }
+
+  const totalNotas = Number(db.prepare("SELECT COUNT(*) AS total FROM notas WHERE usuarioId = ?").get(id)?.total || 0);
+  const excluirComSeguranca = db.transaction(() => {
+    db.prepare(`
+      UPDATE notas
+      SET usuarioId = ?, atualizadoEm = ?
+      WHERE usuarioId = ?
+    `).run(responsavelId, new Date().toISOString(), id);
+
+    db.prepare("UPDATE pendencias SET responsavelId = ?, atualizadoEm = ? WHERE responsavelId = ?").run(responsavelId, new Date().toISOString(), id);
+    db.prepare("UPDATE pendencias SET criadoPor = ? WHERE criadoPor = ?").run(responsavelId, id);
+    db.prepare("UPDATE pendencia_itens SET concluidoPor = NULL WHERE concluidoPor = ?").run(id);
+    db.prepare("DELETE FROM usuarios WHERE id = ?").run(id);
+  });
+
+  try {
+    excluirComSeguranca();
+    res.json({
+      mensagem: totalNotas > 0
+        ? `Usuário excluído. ${totalNotas} nota(s) transferida(s) para ${responsavel.nome}.`
+        : "Usuário excluído com sucesso.",
+      notasTransferidas: totalNotas,
+      responsavel
+    });
+  } catch (error) {
+    console.error("Erro ao excluir usuário:", error);
+    res.status(500).json({ erro: "Não foi possível excluir o usuário" });
+  }
 });
 
 app.get("/categorias", autenticar, (req, res) => {
@@ -914,7 +992,8 @@ app.get("/notas", autenticar, (req, res) => {
     SELECT
       notas.*,
       usuarios.nome AS autorNome,
-      usuarios.email AS autorEmail
+      usuarios.email AS autorEmail,
+      usuarios.fotoPerfil AS autorFoto
     FROM notas
     JOIN usuarios ON usuarios.id = notas.usuarioId
     WHERE 1 = 1
@@ -1042,7 +1121,19 @@ app.put("/notas/:id", autenticar, (req, res) => {
   const compartilhada = req.body.compartilhada ? 1 : 0;
   const compartilhamentoPrivado = compartilhada && req.body.compartilhamentoPrivado ? 1 : 0;
   const senhaCompartilhamento = String(req.body.senhaCompartilhamento || "");
+  let responsavelId = Number(notaAtual.usuarioId);
   let imagens = [];
+
+  if (req.usuario.tipoUsuario === "admin" && req.body.responsavelId !== undefined) {
+    const responsavelSolicitado = Number(req.body.responsavelId);
+    const responsavel = db.prepare("SELECT id FROM usuarios WHERE id = ? AND ativo = 1").get(responsavelSolicitado);
+
+    if (!responsavel) {
+      return res.status(400).json({ erro: "Selecione um responsável ativo para a nota" });
+    }
+
+    responsavelId = responsavel.id;
+  }
 
   try {
     imagens = validarImagens(req.body.imagens || req.body.imagem || []);
@@ -1067,6 +1158,7 @@ app.put("/notas/:id", autenticar, (req, res) => {
   db.prepare(`
     UPDATE notas
     SET
+      usuarioId = ?,
       titulo = ?,
       conteudo = ?,
       categoria = ?,
@@ -1079,6 +1171,7 @@ app.put("/notas/:id", autenticar, (req, res) => {
       atualizadoEm = ?
     WHERE id = ?
   `).run(
+    responsavelId,
     titulo,
     conteudo,
     categoria,
@@ -1376,7 +1469,9 @@ function validarBancoImportado(arquivo) {
     }
 
     const tabelas = new Set(importado.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all().map((item) => item.name));
-    for (const tabela of ["usuarios", "notas", "categorias", "subcategorias"]) {
+    // Bancos antigos do Smart Notes podem não possuir tabelas auxiliares,
+    // que são recriadas pelas migrações na inicialização.
+    for (const tabela of ["usuarios", "notas"]) {
       if (!tabelas.has(tabela)) {
         throw new Error("O arquivo não pertence ao Smart Notes ou está incompleto.");
       }
@@ -1384,6 +1479,377 @@ function validarBancoImportado(arquivo) {
   } finally {
     importado.close();
   }
+}
+
+
+function numeroId(valor) {
+  const id = Number(valor);
+  return Number.isInteger(id) && id > 0 ? id : null;
+}
+
+function booleanoSql(valor, padrao = false) {
+  if (valor === undefined || valor === null) return padrao ? 1 : 0;
+  return valor === true || valor === 1 || valor === "1" ? 1 : 0;
+}
+
+function dataImportada(valor, fallback = new Date().toISOString()) {
+  const texto = String(valor || "").trim();
+  return texto || fallback;
+}
+
+function usuarioLoginImportado(item, usados, id) {
+  const candidatos = [item?.usuario, String(item?.email || "").split("@")[0], item?.nome, `usuario${id}`];
+  let base = "";
+  for (const candidato of candidatos) {
+    base = String(candidato || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z0-9._-]/g, "")
+      .replace(/^[._-]+|[._-]+$/g, "")
+      .slice(0, 28);
+    if (base.length >= 3) break;
+  }
+  if (base.length < 3) base = `usuario${id}`;
+
+  let candidato = base;
+  let contador = 1;
+  while (usados.has(candidato.toLowerCase())) {
+    contador += 1;
+    candidato = `${base.slice(0, 24)}${contador}`;
+  }
+  usados.add(candidato.toLowerCase());
+  return candidato;
+}
+
+function validarBackupMobileJson(dados) {
+  if (!dados || typeof dados !== "object" || Array.isArray(dados)) {
+    throw new Error("O arquivo JSON selecionado não é um backup válido do Smart Notes.");
+  }
+  if (dados.format !== "smart-notes-mobile") {
+    throw new Error("Este JSON não foi exportado pelo Smart Notes Mobile.");
+  }
+  if (!Array.isArray(dados.usuarios) || !Array.isArray(dados.notas)) {
+    throw new Error("O backup do celular está incompleto: usuários ou notas não foram encontrados.");
+  }
+  if (dados.usuarios.length === 0) {
+    throw new Error("O backup do celular não possui usuários.");
+  }
+}
+
+function importarBackupMobileJson(dados) {
+  validarBackupMobileJson(dados);
+
+  const usuariosEntrada = Array.isArray(dados.usuarios) ? dados.usuarios : [];
+  const categoriasEntrada = Array.isArray(dados.categorias) ? dados.categorias : [];
+  const subcategoriasEntrada = Array.isArray(dados.subcategorias) ? dados.subcategorias : [];
+  const notasEntrada = Array.isArray(dados.notas) ? dados.notas : [];
+  const favoritosEntrada = Array.isArray(dados.favoritos) ? dados.favoritos : [];
+  const fixadasEntrada = Array.isArray(dados.fixadas) ? dados.fixadas : [];
+  const observacoesEntrada = Array.isArray(dados.observacoes) ? dados.observacoes : [];
+  const acessosEntrada = Array.isArray(dados.acessosPrivados) ? dados.acessosPrivados : [];
+  const pendenciasEntrada = Array.isArray(dados.pendencias) ? dados.pendencias : [];
+  const pendenciaItensEntrada = Array.isArray(dados.pendenciaItens) ? dados.pendenciaItens : [];
+
+  const executar = db.transaction(() => {
+    // Ordem importante por causa das chaves estrangeiras.
+    db.exec(`
+      DELETE FROM sessoes;
+      DELETE FROM pendencia_itens;
+      DELETE FROM pendencias;
+      DELETE FROM nota_observacoes;
+      DELETE FROM nota_acessos_privados;
+      DELETE FROM nota_favoritos;
+      DELETE FROM nota_fixadas;
+      DELETE FROM notas;
+      DELETE FROM subcategorias;
+      DELETE FROM categorias;
+      DELETE FROM usuarios;
+    `);
+
+    const agoraIso = new Date().toISOString();
+    const mapaUsuarios = new Map();
+    const idsUsuarios = new Set();
+    const loginsUsados = new Set();
+    const emailsUsados = new Set();
+    let proximoUsuario = Math.max(0, ...usuariosEntrada.map((item) => numeroId(item?.id) || 0));
+
+    const inserirUsuario = db.prepare(`
+      INSERT INTO usuarios (
+        id, nome, usuario, email, senhaHash, tipoUsuario, fotoPerfil,
+        codigoRecuperacao, codigoRecuperacaoExpiraEm, criadoEm, ultimoLogin, ativo
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    for (const item of usuariosEntrada) {
+      const idOriginal = numeroId(item?.id);
+      let id = idOriginal;
+      if (!id || idsUsuarios.has(id)) id = ++proximoUsuario;
+      idsUsuarios.add(id);
+      if (idOriginal) mapaUsuarios.set(idOriginal, id);
+
+      const nome = normalizarNomeExibicao(item?.nome) || `Usuário ${id}`;
+      const usuario = usuarioLoginImportado(item, loginsUsados, id);
+      let email = String(item?.email || "").trim().toLowerCase();
+      if (!email.includes("@")) email = `${usuario.toLowerCase()}@smartnotes.local`;
+      if (emailsUsados.has(email)) email = `${usuario.toLowerCase()}.${id}@smartnotes.local`;
+      emailsUsados.add(email);
+
+      const adminPadrao = email === "admin@smartnotes.com" || usuario.toLowerCase() === "admin";
+      const tipoUsuario = adminPadrao || item?.tipoUsuario === "admin" || item?.admin === true ? "admin" : "usuario";
+      let senhaHash = String(item?.senhaHash || "").trim();
+      if (!/^[0-9a-f]+:[0-9a-f]+$/i.test(senhaHash)) {
+        // Backups mobile válidos normalmente sempre possuem senhaHash. Este fallback
+        // mantém uma conta administrativa acessível em backups muito antigos.
+        senhaHash = adminPadrao ? gerarHashSenha("1234") : gerarHashSenha(randomBytes(12).toString("hex"));
+      }
+
+      inserirUsuario.run(
+        id,
+        nome,
+        usuario,
+        email,
+        senhaHash,
+        tipoUsuario,
+        String(item?.fotoPerfil || ""),
+        item?.codigoRecuperacao || null,
+        item?.codigoRecuperacaoExpiraEm || null,
+        dataImportada(item?.criadoEm, agoraIso),
+        item?.ultimoLogin || null,
+        adminPadrao ? 1 : booleanoSql(item?.ativo, true)
+      );
+    }
+
+    let admin = db.prepare(`
+      SELECT id FROM usuarios
+      WHERE lower(email) = 'admin@smartnotes.com' OR lower(usuario) = 'admin'
+      ORDER BY CASE WHEN lower(email) = 'admin@smartnotes.com' THEN 0 ELSE 1 END, id
+      LIMIT 1
+    `).get();
+
+    if (!admin) {
+      const id = ++proximoUsuario;
+      inserirUsuario.run(
+        id, "Administrador", usuarioLoginImportado({ usuario: "Admin" }, loginsUsados, id),
+        "admin@smartnotes.com", gerarHashSenha("1234"), "admin", "", null, null, agoraIso, null, 1
+      );
+      admin = { id };
+    } else {
+      db.prepare("UPDATE usuarios SET tipoUsuario = 'admin', ativo = 1 WHERE id = ?").run(admin.id);
+    }
+    const adminId = Number(admin.id);
+
+    const usuarioMapeado = (valor, fallback = adminId) => {
+      const original = numeroId(valor);
+      const mapeado = original ? (mapaUsuarios.get(original) || original) : null;
+      return mapeado && idsUsuarios.has(mapeado) ? mapeado : fallback;
+    };
+    idsUsuarios.add(adminId);
+
+    const mapaCategorias = new Map();
+    const idsCategorias = new Set();
+    let proximaCategoria = Math.max(0, ...categoriasEntrada.map((item) => numeroId(item?.id) || 0));
+    const inserirCategoria = db.prepare(`
+      INSERT INTO categorias (id, nome, icone, criadoPor, criadoEm, ativo)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+    for (const item of categoriasEntrada) {
+      const nome = String(item?.nome || "").trim();
+      if (!nome) continue;
+      const original = numeroId(item?.id);
+      let id = original;
+      if (!id || idsCategorias.has(id)) id = ++proximaCategoria;
+      idsCategorias.add(id);
+      if (original) mapaCategorias.set(original, id);
+      inserirCategoria.run(id, nome, String(item?.icone || "📁"), usuarioMapeado(item?.criadoPor), dataImportada(item?.criadoEm, agoraIso), booleanoSql(item?.ativo, true));
+    }
+
+    const categoriaPorNome = new Map(db.prepare("SELECT id, nome FROM categorias").all().map((item) => [String(item.nome).toLowerCase(), Number(item.id)]));
+    const idsSubcategorias = new Set();
+    let proximaSubcategoria = Math.max(0, ...subcategoriasEntrada.map((item) => numeroId(item?.id) || 0));
+    const inserirSubcategoria = db.prepare(`
+      INSERT OR IGNORE INTO subcategorias (id, categoriaId, nome, criadoPor, criadoEm, ativo)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+    for (const item of subcategoriasEntrada) {
+      const nome = String(item?.nome || "").trim();
+      if (!nome) continue;
+      const categoriaOriginal = numeroId(item?.categoriaId);
+      const categoriaId = (categoriaOriginal && (mapaCategorias.get(categoriaOriginal) || categoriaOriginal))
+        || categoriaPorNome.get(String(item?.categoria || "").trim().toLowerCase());
+      if (!categoriaId || !idsCategorias.has(Number(categoriaId))) continue;
+      let id = numeroId(item?.id);
+      if (!id || idsSubcategorias.has(id)) id = ++proximaSubcategoria;
+      idsSubcategorias.add(id);
+      inserirSubcategoria.run(id, Number(categoriaId), nome, usuarioMapeado(item?.criadoPor), dataImportada(item?.criadoEm, agoraIso), booleanoSql(item?.ativo, true));
+    }
+
+    const mapaNotas = new Map();
+    const idsNotas = new Set();
+    let proximaNota = Math.max(0, ...notasEntrada.map((item) => numeroId(item?.id) || 0));
+    const inserirNota = db.prepare(`
+      INSERT INTO notas (
+        id, usuarioId, titulo, conteudo, categoria, subcategoria, compartilhada,
+        compartilhamentoPrivado, senhaCompartilhamentoHash, imagem, imagens,
+        favorita, fixada, naLixeira, criadoEm, atualizadoEm
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    for (const item of notasEntrada) {
+      const original = numeroId(item?.id);
+      let id = original;
+      if (!id || idsNotas.has(id)) id = ++proximaNota;
+      idsNotas.add(id);
+      if (original) mapaNotas.set(original, id);
+      const imagens = Array.isArray(item?.imagens)
+        ? item.imagens.filter(Boolean)
+        : (item?.imagem ? [String(item.imagem)] : []);
+      inserirNota.run(
+        id,
+        usuarioMapeado(item?.usuarioId),
+        String(item?.titulo || "Sem título"),
+        String(item?.conteudo || ""),
+        String(item?.categoria || "Atendimentos"),
+        String(item?.subcategoria || ""),
+        booleanoSql(item?.compartilhada),
+        booleanoSql(item?.compartilhamentoPrivado),
+        item?.senhaCompartilhamentoHash || null,
+        imagens[0] || String(item?.imagem || ""),
+        JSON.stringify(imagens),
+        booleanoSql(item?.favorita),
+        booleanoSql(item?.fixada),
+        booleanoSql(item?.naLixeira),
+        dataImportada(item?.criadoEm, agoraIso),
+        item?.atualizadoEm || null
+      );
+    }
+
+    const notaMapeada = (valor) => {
+      const original = numeroId(valor);
+      if (!original) return null;
+      const id = mapaNotas.get(original) || original;
+      return idsNotas.has(id) ? id : null;
+    };
+
+    const inserirFavorito = db.prepare("INSERT OR IGNORE INTO nota_favoritos (notaId, usuarioId, criadoEm) VALUES (?, ?, ?)");
+    const inserirFixada = db.prepare("INSERT OR IGNORE INTO nota_fixadas (notaId, usuarioId, criadoEm) VALUES (?, ?, ?)");
+    for (const item of favoritosEntrada) {
+      const notaId = notaMapeada(item?.notaId);
+      if (notaId) inserirFavorito.run(notaId, usuarioMapeado(item?.usuarioId), dataImportada(item?.criadoEm, agoraIso));
+    }
+    for (const item of fixadasEntrada) {
+      const notaId = notaMapeada(item?.notaId);
+      if (notaId) inserirFixada.run(notaId, usuarioMapeado(item?.usuarioId), dataImportada(item?.criadoEm, agoraIso));
+    }
+    // Compatibilidade com backups antigos que guardavam favorita/fixada dentro da nota.
+    for (const item of notasEntrada) {
+      const notaId = notaMapeada(item?.id);
+      if (!notaId) continue;
+      const usuarioId = usuarioMapeado(item?.usuarioId);
+      if (item?.favorita) inserirFavorito.run(notaId, usuarioId, dataImportada(item?.criadoEm, agoraIso));
+      if (item?.fixada) inserirFixada.run(notaId, usuarioId, dataImportada(item?.criadoEm, agoraIso));
+    }
+
+    const inserirAcesso = db.prepare("INSERT OR IGNORE INTO nota_acessos_privados (notaId, usuarioId, criadoEm) VALUES (?, ?, ?)");
+    for (const item of acessosEntrada) {
+      const notaId = notaMapeada(item?.notaId);
+      if (notaId) inserirAcesso.run(notaId, usuarioMapeado(item?.usuarioId), dataImportada(item?.criadoEm, agoraIso));
+    }
+
+    const idsObservacoes = new Set();
+    let proximaObservacao = Math.max(0, ...observacoesEntrada.map((item) => numeroId(item?.id) || 0));
+    const inserirObservacao = db.prepare(`
+      INSERT INTO nota_observacoes (id, notaId, usuarioId, texto, imagens, criadoEm, atualizadoEm, ativo)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    for (const item of observacoesEntrada) {
+      const notaId = notaMapeada(item?.notaId);
+      if (!notaId) continue;
+      let id = numeroId(item?.id);
+      if (!id || idsObservacoes.has(id)) id = ++proximaObservacao;
+      idsObservacoes.add(id);
+      inserirObservacao.run(
+        id, notaId, usuarioMapeado(item?.usuarioId), String(item?.texto || ""),
+        JSON.stringify(Array.isArray(item?.imagens) ? item.imagens.filter(Boolean) : []),
+        dataImportada(item?.criadoEm, agoraIso), item?.atualizadoEm || null, booleanoSql(item?.ativo, true)
+      );
+    }
+
+    const mapaPendencias = new Map();
+    const idsPendencias = new Set();
+    let proximaPendencia = Math.max(0, ...pendenciasEntrada.map((item) => numeroId(item?.id) || 0));
+    const inserirPendencia = db.prepare(`
+      INSERT INTO pendencias (id, titulo, descricao, imagens, status, escopo, criadoPor, responsavelId, criadoEm, atualizadoEm, ativo)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    for (const item of pendenciasEntrada) {
+      const original = numeroId(item?.id);
+      let id = original;
+      if (!id || idsPendencias.has(id)) id = ++proximaPendencia;
+      idsPendencias.add(id);
+      if (original) mapaPendencias.set(original, id);
+      const autorId = usuarioMapeado(item?.criadoPor);
+      inserirPendencia.run(
+        id,
+        String(item?.titulo || "Pendência"),
+        String(item?.descricao || ""),
+        JSON.stringify(Array.isArray(item?.imagens) ? item.imagens.filter(Boolean) : []),
+        ["a_fazer", "em_andamento", "concluido"].includes(item?.status) ? item.status : "a_fazer",
+        item?.escopo === "equipe" ? "equipe" : "individual",
+        autorId,
+        usuarioMapeado(item?.responsavelId, autorId),
+        dataImportada(item?.criadoEm, agoraIso),
+        dataImportada(item?.atualizadoEm, dataImportada(item?.criadoEm, agoraIso)),
+        booleanoSql(item?.ativo, true)
+      );
+    }
+
+    const pendenciaMapeada = (valor) => {
+      const original = numeroId(valor);
+      if (!original) return null;
+      const id = mapaPendencias.get(original) || original;
+      return idsPendencias.has(id) ? id : null;
+    };
+    const idsPendenciaItens = new Set();
+    let proximoPendenciaItem = Math.max(0, ...pendenciaItensEntrada.map((item) => numeroId(item?.id) || 0));
+    const inserirPendenciaItem = db.prepare(`
+      INSERT INTO pendencia_itens (
+        id, pendenciaId, texto, concluido, concluidoPor, concluidoPorNome,
+        concluidoEm, ordem, criadoEm, atualizadoEm
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    for (const item of pendenciaItensEntrada) {
+      const pendenciaId = pendenciaMapeada(item?.pendenciaId);
+      if (!pendenciaId) continue;
+      let id = numeroId(item?.id);
+      if (!id || idsPendenciaItens.has(id)) id = ++proximoPendenciaItem;
+      idsPendenciaItens.add(id);
+      const concluido = booleanoSql(item?.concluido);
+      const concluidorOriginal = numeroId(item?.concluidoPor);
+      const concluidorId = concluido && concluidorOriginal ? usuarioMapeado(concluidorOriginal, null) : null;
+      inserirPendenciaItem.run(
+        id,
+        pendenciaId,
+        String(item?.texto || "Item"),
+        concluido,
+        concluidorId,
+        concluido ? (String(item?.concluidoPorNome || "").trim() || null) : null,
+        concluido ? (item?.concluidoEm || null) : null,
+        Number.isFinite(Number(item?.ordem)) ? Number(item.ordem) : 0,
+        dataImportada(item?.criadoEm, agoraIso),
+        dataImportada(item?.atualizadoEm, dataImportada(item?.criadoEm, agoraIso))
+      );
+    }
+
+    db.prepare("DELETE FROM sessoes").run();
+
+    return {
+      usuarios: db.prepare("SELECT COUNT(*) AS total FROM usuarios").get().total,
+      notas: db.prepare("SELECT COUNT(*) AS total FROM notas").get().total,
+      categorias: db.prepare("SELECT COUNT(*) AS total FROM categorias WHERE ativo = 1").get().total,
+      pendencias: db.prepare("SELECT COUNT(*) AS total FROM pendencias WHERE ativo = 1").get().total
+    };
+  });
+
+  return executar();
 }
 
 app.get("/backups", autenticar, exigirAdmin, (req, res) => {
@@ -1441,12 +1907,42 @@ app.post(
   "/backups/import-database",
   autenticar,
   exigirAdmin,
-  express.raw({ type: ["application/octet-stream", "application/vnd.sqlite3", "application/x-sqlite3"], limit: "250mb" }),
+  express.raw({ type: ["application/octet-stream", "application/vnd.sqlite3", "application/x-sqlite3", "application/json", "text/json"], limit: "250mb" }),
   async (req, res) => {
     let recebido = null;
     try {
-      if (!Buffer.isBuffer(req.body) || req.body.length < 100) {
-        return res.status(400).json({ erro: "Selecione um arquivo .db válido" });
+      if (!Buffer.isBuffer(req.body) || req.body.length < 2) {
+        return res.status(400).json({ erro: "Selecione um arquivo .db ou .json válido" });
+      }
+
+      const inicioTexto = req.body.subarray(0, Math.min(req.body.length, 2048)).toString("utf8").replace(/^\uFEFF/, "").trimStart();
+      const pareceJson = inicioTexto.startsWith("{");
+
+      if (pareceJson) {
+        let dados;
+        try {
+          dados = JSON.parse(req.body.toString("utf8").replace(/^\uFEFF/, ""));
+        } catch {
+          return res.status(400).json({ erro: "O arquivo JSON está inválido ou corrompido." });
+        }
+
+        validarBackupMobileJson(dados);
+        const backupSeguranca = nomeArquivoData("smart-notes-antes-da-importacao-mobile");
+        await criarCopiaBanco(path.join(BACKUPS_DIR, backupSeguranca));
+        const resumo = importarBackupMobileJson(dados);
+
+        return res.json({
+          mensagem: "Backup do celular importado com sucesso. Os dados JSON foram convertidos para o banco SQLite do computador.",
+          backupSeguranca,
+          reiniciando: false,
+          sessaoEncerrada: true,
+          origem: "mobile-json",
+          resumo
+        });
+      }
+
+      if (req.body.length < 100) {
+        return res.status(400).json({ erro: "Selecione um arquivo .db SQLite válido ou um backup .json do Smart Notes Mobile" });
       }
 
       recebido = path.join(BACKUPS_DIR, `.import-${process.pid}-${Date.now()}.db`);
@@ -1465,7 +1961,8 @@ app.post(
       res.json({
         mensagem: "Banco validado. O Smart Notes será reiniciado para concluir a importação.",
         backupSeguranca,
-        reiniciando: true
+        reiniciando: true,
+        origem: "desktop-db"
       });
 
       setTimeout(() => {
@@ -1494,6 +1991,308 @@ criarBackupDiarioSeNecessario().catch((error) => {
   console.error("[Banco] Nao foi possivel criar o backup diario:", error.message);
 });
 
+
+
+const STATUS_PENDENCIA = new Set(["a_fazer", "em_andamento", "concluido"]);
+const ESCOPOS_PENDENCIA = new Set(["individual", "equipe"]);
+
+function escopoPendencia(pendencia) {
+  return pendencia?.escopo === "equipe" ? "equipe" : "individual";
+}
+
+function podeEditarPendencia(pendencia, usuario) {
+  if (escopoPendencia(pendencia) === "equipe") return true;
+  return usuario.tipoUsuario === "admin"
+    || Number(pendencia.criadoPor) === Number(usuario.id)
+    || Number(pendencia.responsavelId) === Number(usuario.id);
+}
+
+function podeExcluirPendencia(pendencia, usuario) {
+  if (escopoPendencia(pendencia) === "equipe") {
+    return usuario.tipoUsuario === "admin" || Number(pendencia.criadoPor) === Number(usuario.id);
+  }
+  return podeEditarPendencia(pendencia, usuario);
+}
+
+function podeAlterarEscopoPendencia(pendencia, usuario) {
+  return usuario.tipoUsuario === "admin" || Number(pendencia.criadoPor) === Number(usuario.id);
+}
+
+function sincronizarItensPendencia(pendenciaId, itensRecebidos, usuario, instante) {
+  const atuais = db.prepare("SELECT * FROM pendencia_itens WHERE pendenciaId = ? ORDER BY ordem, id").all(pendenciaId);
+  const atuaisPorId = new Map(atuais.map((item) => [Number(item.id), item]));
+  const idsMantidos = new Set();
+  const atualizar = db.prepare(`
+    UPDATE pendencia_itens
+    SET texto = ?, concluido = ?, concluidoPor = ?, concluidoPorNome = ?, concluidoEm = ?, ordem = ?, atualizadoEm = ?
+    WHERE id = ? AND pendenciaId = ?
+  `);
+  const inserir = db.prepare(`
+    INSERT INTO pendencia_itens (
+      pendenciaId, texto, concluido, concluidoPor, concluidoPorNome, concluidoEm, ordem, criadoEm, atualizadoEm
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  (Array.isArray(itensRecebidos) ? itensRecebidos : []).forEach((item, ordem) => {
+    const texto = String(typeof item === "string" ? item : (item?.texto || "")).trim();
+    if (!texto) return;
+
+    const idRecebido = Number(item?.id);
+    const atual = Number.isInteger(idRecebido) ? atuaisPorId.get(idRecebido) : null;
+    const concluido = item?.concluido ? 1 : 0;
+    let concluidoPor = null;
+    let concluidoPorNome = null;
+    let concluidoEm = null;
+
+    if (concluido) {
+      if (atual && Boolean(atual.concluido)) {
+        concluidoPor = atual.concluidoPor || null;
+        concluidoPorNome = atual.concluidoPorNome || null;
+        concluidoEm = atual.concluidoEm || null;
+      } else {
+        concluidoPor = usuario.id;
+        concluidoPorNome = usuario.nome || "Usuário";
+        concluidoEm = instante;
+      }
+    }
+
+    if (atual) {
+      atualizar.run(
+        texto,
+        concluido,
+        concluidoPor,
+        concluidoPorNome,
+        concluidoEm,
+        ordem,
+        instante,
+        atual.id,
+        pendenciaId
+      );
+      idsMantidos.add(Number(atual.id));
+      return;
+    }
+
+    const resultado = inserir.run(
+      pendenciaId,
+      texto,
+      concluido,
+      concluidoPor,
+      concluidoPorNome,
+      concluidoEm,
+      ordem,
+      instante,
+      instante
+    );
+    idsMantidos.add(Number(resultado.lastInsertRowid));
+  });
+
+  const excluir = db.prepare("DELETE FROM pendencia_itens WHERE id = ? AND pendenciaId = ?");
+  atuais.forEach((item) => {
+    if (!idsMantidos.has(Number(item.id))) excluir.run(item.id, pendenciaId);
+  });
+}
+
+function concluirPendenciaSeChecklistCompleto(pendenciaId, instante) {
+  const resumo = db.prepare(`
+    SELECT COUNT(*) AS total, SUM(CASE WHEN concluido = 1 THEN 1 ELSE 0 END) AS concluidos
+    FROM pendencia_itens
+    WHERE pendenciaId = ?
+  `).get(pendenciaId);
+
+  const total = Number(resumo?.total || 0);
+  const concluidos = Number(resumo?.concluidos || 0);
+  if (total > 0 && concluidos === total) {
+    db.prepare("UPDATE pendencias SET status = 'concluido', atualizadoEm = ? WHERE id = ?")
+      .run(instante, pendenciaId);
+    return true;
+  }
+  return false;
+}
+
+function normalizarPendencia(row, usuario) {
+  const itens = db.prepare(`
+    SELECT i.*, u.nome AS usuarioConcluidorNome
+    FROM pendencia_itens i
+    LEFT JOIN usuarios u ON u.id = i.concluidoPor
+    WHERE i.pendenciaId = ?
+    ORDER BY i.ordem, i.id
+  `).all(row.id).map((item) => {
+    const { usuarioConcluidorNome, ...dadosItem } = item;
+    return {
+      ...dadosItem,
+      concluido: Boolean(item.concluido),
+      concluidoPorNome: usuarioConcluidorNome || item.concluidoPorNome || null
+    };
+  });
+  const concluidos = itens.filter((item) => item.concluido).length;
+  const total = itens.length;
+  const escopo = escopoPendencia(row);
+
+  return {
+    ...row,
+    escopo,
+    ativo: Boolean(row.ativo),
+    imagens: lerImagens(row.imagens),
+    itens,
+    concluidos,
+    total,
+    progresso: total ? Math.round((concluidos * 100) / total) : 0,
+    podeEditar: usuario ? podeEditarPendencia({ ...row, escopo }, usuario) : false,
+    podeExcluir: usuario ? podeExcluirPendencia({ ...row, escopo }, usuario) : false,
+    podeAlterarEscopo: usuario ? podeAlterarEscopoPendencia({ ...row, escopo }, usuario) : false
+  };
+}
+
+function buscarPendencia(id) {
+  return db.prepare(`
+    SELECT p.*, c.nome AS autorNome, r.nome AS responsavelNome
+    FROM pendencias p
+    LEFT JOIN usuarios c ON c.id = p.criadoPor
+    LEFT JOIN usuarios r ON r.id = p.responsavelId
+    WHERE p.id = ? AND p.ativo = 1
+  `).get(id);
+}
+
+app.get("/pendencias", autenticar, (req, res) => {
+  const baseConsulta = `
+    SELECT p.*, c.nome AS autorNome, r.nome AS responsavelNome
+    FROM pendencias p
+    LEFT JOIN usuarios c ON c.id = p.criadoPor
+    LEFT JOIN usuarios r ON r.id = p.responsavelId
+    WHERE p.ativo = 1
+  `;
+
+  const rows = req.usuario.tipoUsuario === "admin"
+    ? db.prepare(`${baseConsulta} ORDER BY p.atualizadoEm DESC`).all()
+    : db.prepare(`${baseConsulta}
+        AND (
+          COALESCE(p.escopo, 'individual') = 'equipe'
+          OR p.criadoPor = ?
+          OR p.responsavelId = ?
+        )
+        ORDER BY p.atualizadoEm DESC
+      `).all(req.usuario.id, req.usuario.id);
+
+  res.json(rows.map((row) => normalizarPendencia(row, req.usuario)));
+});
+
+app.post("/pendencias", autenticar, (req, res) => {
+  const titulo = String(req.body.titulo || "").trim();
+  const descricao = String(req.body.descricao || "").trim();
+  const status = STATUS_PENDENCIA.has(req.body.status) ? req.body.status : "a_fazer";
+  const escopo = ESCOPOS_PENDENCIA.has(req.body.escopo) ? req.body.escopo : "individual";
+  let imagens = [];
+
+  try {
+    imagens = validarImagens(req.body.imagens || [], 6);
+  } catch (error) {
+    return res.status(400).json({ erro: error.message });
+  }
+
+  let responsavelId = req.usuario.id;
+  if (req.usuario.tipoUsuario === "admin" && req.body.responsavelId) {
+    responsavelId = Number(req.body.responsavelId);
+  }
+
+  const responsavel = db.prepare("SELECT id FROM usuarios WHERE id = ? AND ativo = 1").get(responsavelId);
+  if (!titulo) return res.status(400).json({ erro: "Informe o título da pendência" });
+  if (!responsavel) return res.status(400).json({ erro: "Responsável inválido ou inativo" });
+
+  const agora = new Date().toISOString();
+  const transacao = db.transaction(() => {
+    const resultado = db.prepare(`
+      INSERT INTO pendencias (
+        titulo, descricao, imagens, status, escopo, criadoPor, responsavelId, criadoEm, atualizadoEm, ativo
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+    `).run(titulo, descricao, JSON.stringify(imagens), status, escopo, req.usuario.id, responsavelId, agora, agora);
+
+    sincronizarItensPendencia(resultado.lastInsertRowid, req.body.itens, req.usuario, agora);
+    concluirPendenciaSeChecklistCompleto(resultado.lastInsertRowid, agora);
+
+    return resultado.lastInsertRowid;
+  });
+
+  const id = transacao();
+  res.status(201).json(normalizarPendencia(buscarPendencia(id), req.usuario));
+});
+
+app.put("/pendencias/:id", autenticar, (req, res) => {
+  const pendencia = buscarPendencia(Number(req.params.id));
+  if (!pendencia) return res.status(404).json({ erro: "Pendência não encontrada" });
+  if (!podeEditarPendencia(pendencia, req.usuario)) {
+    return res.status(403).json({ erro: "Sem permissão para alterar esta pendência" });
+  }
+
+  const titulo = String(req.body.titulo ?? pendencia.titulo).trim();
+  const descricao = String(req.body.descricao ?? pendencia.descricao).trim();
+  const status = STATUS_PENDENCIA.has(req.body.status) ? req.body.status : pendencia.status;
+  let imagens = lerImagens(pendencia.imagens);
+  if (req.body.imagens !== undefined) {
+    try {
+      imagens = validarImagens(req.body.imagens || [], 6);
+    } catch (error) {
+      return res.status(400).json({ erro: error.message });
+    }
+  }
+  let escopo = escopoPendencia(pendencia);
+  let responsavelId = pendencia.responsavelId;
+
+  if (!titulo) return res.status(400).json({ erro: "Informe o título da pendência" });
+
+  if (podeAlterarEscopoPendencia(pendencia, req.usuario) && ESCOPOS_PENDENCIA.has(req.body.escopo)) {
+    escopo = req.body.escopo;
+  }
+
+  if (req.usuario.tipoUsuario === "admin" && req.body.responsavelId !== undefined) {
+    responsavelId = Number(req.body.responsavelId);
+  }
+
+  if (!db.prepare("SELECT id FROM usuarios WHERE id = ? AND ativo = 1").get(responsavelId)) {
+    return res.status(400).json({ erro: "Responsável inválido" });
+  }
+
+  const agora = new Date().toISOString();
+  const transacao = db.transaction(() => {
+    db.prepare(`
+      UPDATE pendencias
+      SET titulo = ?, descricao = ?, imagens = ?, status = ?, escopo = ?, responsavelId = ?, atualizadoEm = ?
+      WHERE id = ?
+    `).run(titulo, descricao, JSON.stringify(imagens), status, escopo, responsavelId, agora, pendencia.id);
+
+    if (Array.isArray(req.body.itens)) {
+      sincronizarItensPendencia(pendencia.id, req.body.itens, req.usuario, agora);
+      concluirPendenciaSeChecklistCompleto(pendencia.id, agora);
+    }
+  });
+
+  transacao();
+  res.json(normalizarPendencia(buscarPendencia(pendencia.id), req.usuario));
+});
+
+app.patch("/pendencias/:id/status", autenticar, (req, res) => {
+  const pendencia = buscarPendencia(Number(req.params.id));
+  const status = String(req.body.status || "");
+  if (!pendencia) return res.status(404).json({ erro: "Pendência não encontrada" });
+  if (!podeEditarPendencia(pendencia, req.usuario)) return res.status(403).json({ erro: "Sem permissão" });
+  if (!STATUS_PENDENCIA.has(status)) return res.status(400).json({ erro: "Status inválido" });
+
+  db.prepare("UPDATE pendencias SET status = ?, atualizadoEm = ? WHERE id = ?")
+    .run(status, new Date().toISOString(), pendencia.id);
+  res.json(normalizarPendencia(buscarPendencia(pendencia.id), req.usuario));
+});
+
+app.delete("/pendencias/:id", autenticar, (req, res) => {
+  const pendencia = buscarPendencia(Number(req.params.id));
+  if (!pendencia) return res.status(404).json({ erro: "Pendência não encontrada" });
+  if (!podeExcluirPendencia(pendencia, req.usuario)) {
+    return res.status(403).json({ erro: "Somente o criador ou um administrador pode excluir esta pendência da equipe" });
+  }
+
+  db.prepare("UPDATE pendencias SET ativo = 0, atualizadoEm = ? WHERE id = ?")
+    .run(new Date().toISOString(), pendencia.id);
+  res.json({ mensagem: "Pendência excluída" });
+});
+
 app.listen(3000, "0.0.0.0", () => {
-  console.log("Smart Notes 1.4.4 rodando em http://localhost:3000");
+  console.log("Smart Notes 1.5.4 rodando em http://localhost:3000");
 });

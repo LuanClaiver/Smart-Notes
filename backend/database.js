@@ -133,6 +133,37 @@ db.exec(`
     FOREIGN KEY (usuarioId) REFERENCES usuarios(id) ON DELETE CASCADE
   );
 
+  CREATE TABLE IF NOT EXISTS pendencias (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    titulo TEXT NOT NULL,
+    descricao TEXT DEFAULT '',
+    imagens TEXT DEFAULT '[]',
+    status TEXT NOT NULL DEFAULT 'a_fazer',
+    escopo TEXT NOT NULL DEFAULT 'individual',
+    criadoPor INTEGER,
+    responsavelId INTEGER NOT NULL,
+    criadoEm TEXT NOT NULL,
+    atualizadoEm TEXT NOT NULL,
+    ativo INTEGER DEFAULT 1,
+    FOREIGN KEY (criadoPor) REFERENCES usuarios(id) ON DELETE SET NULL,
+    FOREIGN KEY (responsavelId) REFERENCES usuarios(id) ON DELETE RESTRICT
+  );
+
+  CREATE TABLE IF NOT EXISTS pendencia_itens (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    pendenciaId INTEGER NOT NULL,
+    texto TEXT NOT NULL,
+    concluido INTEGER DEFAULT 0,
+    concluidoPor INTEGER,
+    concluidoPorNome TEXT,
+    concluidoEm TEXT,
+    ordem INTEGER DEFAULT 0,
+    criadoEm TEXT NOT NULL,
+    atualizadoEm TEXT NOT NULL,
+    FOREIGN KEY (pendenciaId) REFERENCES pendencias(id) ON DELETE CASCADE,
+    FOREIGN KEY (concluidoPor) REFERENCES usuarios(id) ON DELETE SET NULL
+  );
+
   CREATE TABLE IF NOT EXISTS nota_acessos_privados (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     notaId INTEGER NOT NULL,
@@ -174,11 +205,18 @@ adicionarColuna("subcategorias", "criadoPor", "criadoPor INTEGER");
 adicionarColuna("subcategorias", "criadoEm", "criadoEm TEXT");
 adicionarColuna("subcategorias", "ativo", "ativo INTEGER DEFAULT 1");
 
+adicionarColuna("pendencias", "escopo", "escopo TEXT NOT NULL DEFAULT 'individual'");
+adicionarColuna("pendencias", "imagens", "imagens TEXT DEFAULT '[]'");
+adicionarColuna("pendencia_itens", "concluidoPor", "concluidoPor INTEGER");
+adicionarColuna("pendencia_itens", "concluidoPorNome", "concluidoPorNome TEXT");
+adicionarColuna("pendencia_itens", "concluidoEm", "concluidoEm TEXT");
+
 db.prepare("UPDATE categorias SET icone = '📁' WHERE icone IS NULL OR icone = ''").run();
 db.prepare("UPDATE categorias SET criadoEm = ? WHERE criadoEm IS NULL OR criadoEm = ''").run(new Date().toISOString());
 db.prepare("UPDATE categorias SET ativo = 1 WHERE ativo IS NULL").run();
 db.prepare("UPDATE subcategorias SET criadoEm = ? WHERE criadoEm IS NULL OR criadoEm = ''").run(new Date().toISOString());
 db.prepare("UPDATE subcategorias SET ativo = 1 WHERE ativo IS NULL").run();
+db.prepare("UPDATE pendencias SET escopo = 'individual' WHERE escopo IS NULL OR escopo NOT IN ('individual', 'equipe')").run();
 
 function gerarUsuarioUnico(nome, email, id) {
   const baseOriginal = String(email || nome || `usuario${id}`)
@@ -308,3 +346,6 @@ for (const nota of notasAntigasFixadas) {
 }
 
 module.exports = db;
+
+// Corrige somente a conta administrativa padrão em bancos antigos, sem redefinir senha.
+db.prepare(`UPDATE usuarios SET tipoUsuario = 'admin', ativo = 1 WHERE lower(email) = lower(?) OR lower(usuario) = lower(?)`).run('admin@smartnotes.com', 'Admin');

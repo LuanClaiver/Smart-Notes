@@ -14,7 +14,6 @@ import {
   restaurarNotaService
 } from "./services/notasService";
 import { atualizarPerfilService, logoutService, usuarioAtualService } from "./services/authService";
-import AdminUsuarios from "./components/AdminUsuarios";
 import TelaInicial from "./components/TelaInicial";
 import FormularioNota from "./components/FormularioNota";
 import LoginPage from "./components/LoginPage";
@@ -28,6 +27,7 @@ import Configuracoes from "./components/Configuracoes";
 import BottomNav from "./components/BottomNav";
 import FiltroNotas from "./components/FiltroNotas";
 import VisualizadorImagem from "./components/VisualizadorImagem";
+import Pendencias from "./components/Pendencias";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
@@ -52,8 +52,8 @@ function App() {
   const [mostrarFixadas, setMostrarFixadas] = useState(false);
   const [mostrarLixeira, setMostrarLixeira] = useState(false);
   const [mostrarCompartilhadas, setMostrarCompartilhadas] = useState(false);
-  const [telaAdminUsuarios, setTelaAdminUsuarios] = useState(false);
   const [telaConfiguracoes, setTelaConfiguracoes] = useState(false);
+  const [telaPendencias, setTelaPendencias] = useState(false);
   const [menuAberto, setMenuAberto] = useState(false);
   const [notaSelecionada, setNotaSelecionada] = useState(null);
   const [formularioAberto, setFormularioAberto] = useState(false);
@@ -246,8 +246,13 @@ function App() {
   }
 
   async function criarNota() {
-    if (!titulo.trim() || !conteudo.trim()) {
-      toast.warning("Preencha título e conteúdo.");
+    if (!titulo.trim()) {
+      toast.warning("Informe o título da nota.", { position: "top-right" });
+      return;
+    }
+
+    if (!conteudo.trim()) {
+      toast.warning("Informe o conteúdo da nota.", { position: "top-right" });
       return;
     }
 
@@ -281,8 +286,13 @@ function App() {
   }
 
   async function editarNota(id, dados) {
-    if (!dados.titulo?.trim() || !dados.conteudo?.trim()) {
-      toast.warning("Preencha título e conteúdo.");
+    if (!dados.titulo?.trim()) {
+      toast.warning("Informe o título da nota.", { position: "top-right" });
+      return;
+    }
+
+    if (!dados.conteudo?.trim()) {
+      toast.warning("Informe o conteúdo da nota.", { position: "top-right" });
       return;
     }
 
@@ -422,8 +432,8 @@ function App() {
     setMostrarCompartilhadas(novaAba === "compartilhadas");
     setMostrarLixeira(novaAba === "lixeira");
     setMostrarFixadas(false);
-    setTelaAdminUsuarios(false);
     setTelaConfiguracoes(false);
+    setTelaPendencias(false);
     setCategoriaSelecionada("Todas");
     setSubcategoriaSelecionada("");
     setFormularioAberto(false);
@@ -435,15 +445,14 @@ function App() {
     setPesquisa("");
     setCategoriaSelecionada("Todas");
     setSubcategoriaSelecionada("");
-    setTelaAdminUsuarios(false);
     setTelaConfiguracoes(false);
     setFiltrosAbertos(false);
   }
 
   function voltarParaInicio() {
     setTelaAtual("inicio");
-    setTelaAdminUsuarios(false);
     setTelaConfiguracoes(false);
+    setTelaPendencias(false);
     setFormularioAberto(false);
     setPesquisa("");
     setCategoriaSelecionada("Todas");
@@ -452,10 +461,12 @@ function App() {
     setImagemVisualizada(null);
   }
 
+  function abrirPendencias() { setTelaAtual("pendencias"); setTelaPendencias(true); setTelaConfiguracoes(false); setMenuAberto(false); }
+
   function abrirConfiguracoes() {
     setTelaAtual("configuracoes");
-    setTelaAdminUsuarios(false);
     setTelaConfiguracoes(true);
+    setTelaPendencias(false);
     setFormularioAberto(false);
     setFiltrosAbertos(false);
     setMenuAberto(false);
@@ -463,8 +474,7 @@ function App() {
 
   function concluirImportacaoBanco() {
     limparSessao();
-    toast.info("Banco importado. Aguarde o servidor reiniciar e entre novamente.");
-    setTimeout(() => window.location.reload(), 2200);
+    window.setTimeout(() => window.location.reload(), 400);
   }
 
   function abrirAbaComPasta(aba, categoriaNome) {
@@ -561,10 +571,8 @@ function App() {
     lixeira: "Lixeira"
   }[abaAtiva] || "Minhas notas";
 
-  const tituloPagina = telaConfiguracoes
+  const tituloPagina = telaPendencias ? "Pendências" : telaConfiguracoes
     ? "Configurações"
-    : telaAdminUsuarios
-    ? "Gerenciar usuários"
     : telaAtual === "inicio"
     ? "Início"
     : subcategoriaSelecionada
@@ -630,7 +638,7 @@ function App() {
     return (
       <>
         <LoginPage temaEscuro={temaEscuro} setTemaEscuro={setTemaEscuro} onAutenticado={salvarSessao} />
-        <ToastContainer position="top-right" autoClose={3000} theme={temaEscuro ? "dark" : "light"} />
+        <ToastContainer position="top-right" autoClose={3000} theme={temaEscuro ? "dark" : "light"} style={{ zIndex: 200000 }} newestOnTop />
       </>
     );
   }
@@ -653,8 +661,9 @@ function App() {
           setTemaEscuro={setTemaEscuro}
           abaAtiva={abaAtiva}
           telaAtual={telaAtual}
-          telaAdminUsuarios={telaAdminUsuarios}
           telaConfiguracoes={telaConfiguracoes}
+          telaPendencias={telaPendencias}
+          abrirPendencias={abrirPendencias}
           selecionarAba={selecionarAba}
           voltarParaInicio={voltarParaInicio}
           categoriaSelecionada={categoriaSelecionada}
@@ -665,12 +674,10 @@ function App() {
           setMostrarFixadas={setMostrarFixadas}
           setMostrarLixeira={setMostrarLixeira}
           setMostrarCompartilhadas={setMostrarCompartilhadas}
-          setTelaAdminUsuarios={setTelaAdminUsuarios}
           setTelaConfiguracoes={setTelaConfiguracoes}
+          setTelaPendencias={setTelaPendencias}
           categorias={categorias}
           subcategorias={subcategorias}
-          editarSubcategoria={editarSubcategoria}
-          excluirSubcategoria={excluirSubcategoria}
           notas={notas}
           usuario={usuario}
           abrirPerfil={() => setModalPerfil(true)}
@@ -680,7 +687,15 @@ function App() {
         <main className="flex-1 min-w-0">
           <header className={`mb-6 rounded-[2rem] p-5 md:p-7 border shadow-2xl animate-fade-in ${temaEscuro ? "bg-slate-900/80 border-slate-800" : "bg-white border-slate-200"}`}>
             <div className="flex items-center gap-4">
-              <img src="/smart-notes-logo.svg" alt="" className="hidden sm:block w-14 h-14 rounded-2xl shadow-lg" />
+              <button
+                type="button"
+                onClick={voltarParaInicio}
+                aria-label="Voltar para a tela inicial"
+                title="Voltar para a tela inicial"
+                className="hidden sm:block shrink-0 rounded-2xl transition-transform hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+              >
+                <img src="/smart-notes-logo.svg" alt="Logo Smart Notes" className="w-14 h-14 rounded-2xl shadow-lg" />
+              </button>
               <button onClick={() => setMenuAberto(!menuAberto)} className="md:hidden bg-emerald-600 hover:bg-emerald-700 px-4 py-3 rounded-2xl text-xl cursor-pointer transition-all text-white shadow-lg shadow-emerald-600/20">☰</button>
               <div className="min-w-0">
                 <span className="text-xs uppercase tracking-[0.25em] text-emerald-500 font-black">Smart Notes</span>
@@ -689,10 +704,19 @@ function App() {
             </div>
           </header>
 
-          {telaConfiguracoes ? (
-            <Configuracoes temaEscuro={temaEscuro} usuario={usuario} onBancoImportado={concluirImportacaoBanco} />
-          ) : telaAdminUsuarios ? (
-            <AdminUsuarios temaEscuro={temaEscuro} usuarioAtual={usuario} />
+          {telaPendencias ? (
+            <Pendencias temaEscuro={temaEscuro} usuario={usuario} />
+          ) : telaConfiguracoes ? (
+            <Configuracoes
+              temaEscuro={temaEscuro}
+              usuario={usuario}
+              onBancoImportado={concluirImportacaoBanco}
+              categorias={categorias}
+              subcategorias={subcategorias}
+              criarSubcategoria={criarSubcategoria}
+              editarSubcategoria={editarSubcategoria}
+              excluirSubcategoria={excluirSubcategoria}
+            />
           ) : telaAtual === "inicio" ? (
             <TelaInicial
               notas={notas}
@@ -790,8 +814,9 @@ function App() {
       <BottomNav
         abaAtiva={abaAtiva}
         telaAtual={telaAtual}
-        telaAdminUsuarios={telaAdminUsuarios}
         telaConfiguracoes={telaConfiguracoes}
+        telaPendencias={telaPendencias}
+        onPendencias={abrirPendencias}
         menuAberto={menuAberto}
         onInicio={voltarParaInicio}
         onAba={selecionarAba}
@@ -860,7 +885,7 @@ function App() {
 
       <ModalExcluir modalExcluir={modalExcluir} notaParaExcluir={notaParaExcluir} temaEscuro={temaEscuro} setModalExcluir={setModalExcluir} excluirNota={excluirNota} />
 
-      <ToastContainer position="top-right" autoClose={3000} theme={temaEscuro ? "dark" : "light"} />
+      <ToastContainer position="top-right" autoClose={3000} theme={temaEscuro ? "dark" : "light"} style={{ zIndex: 200000 }} newestOnTop />
     </div>
   );
 }

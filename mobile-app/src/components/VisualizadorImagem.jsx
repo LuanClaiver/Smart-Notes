@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { Capacitor } from "@capacitor/core";
-import { Directory, Filesystem } from "@capacitor/filesystem";
+import { Capacitor, registerPlugin } from "@capacitor/core";
+
+const Downloads = registerPlugin("Downloads");
 
 function blobParaBase64(blob) {
   return new Promise((resolve, reject) => {
@@ -35,24 +36,26 @@ function VisualizadorImagem({ imagem, temaEscuro, onFechar }) {
 
     try {
       const resposta = await fetch(imagem.src);
+      if (!resposta.ok) throw new Error("Falha ao carregar a imagem para download.");
+
       const blob = await resposta.blob();
       const extensao = blob.type?.split("/")[1]?.replace("jpeg", "jpg") || "png";
       const nomeArquivo = `${imagem.nome || "smart-notes-imagem"}.${extensao}`;
 
       if (Capacitor.isNativePlatform()) {
         const base64 = await blobParaBase64(blob);
-        await Filesystem.writeFile({
-          path: `SmartNotes/${nomeArquivo}`,
-          data: base64,
-          directory: Directory.Documents,
-          recursive: true
+        const resultado = await Downloads.saveBase64({
+          fileName: nomeArquivo,
+          mimeType: blob.type || `image/${extensao === "jpg" ? "jpeg" : extensao}`,
+          base64
         });
-        setMensagem(`Imagem salva em Documentos/SmartNotes/${nomeArquivo}`);
+        setMensagem(`Imagem salva em ${resultado?.path || `Downloads/${nomeArquivo}`}`);
       } else {
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
         link.download = nomeArquivo;
+        link.style.display = "none";
         document.body.appendChild(link);
         link.click();
         link.remove();
@@ -60,7 +63,8 @@ function VisualizadorImagem({ imagem, temaEscuro, onFechar }) {
         setMensagem("Download iniciado.");
       }
     } catch (error) {
-      setMensagem("Não foi possível salvar a imagem.");
+      console.error("Falha ao baixar imagem:", error);
+      setMensagem("Não foi possível salvar a imagem em Downloads.");
     } finally {
       setBaixando(false);
     }

@@ -1,4 +1,4 @@
-name: Gerar APK Debug - Smart Notes 1.4.4
+name: Gerar APK Debug - Smart Notes 1.5.4
 
 on:
   workflow_dispatch:
@@ -95,15 +95,15 @@ jobs:
           if (-not (Test-Path -LiteralPath $origem -PathType Leaf)) { throw "APK não encontrado em $origem" }
           $destino = Join-Path $env:GITHUB_WORKSPACE 'APK'
           New-Item -ItemType Directory -Path $destino -Force | Out-Null
-          Copy-Item -LiteralPath $origem -Destination (Join-Path $destino 'Smart-Notes-v1.4.4-Debug.apk') -Force
-          $hash = (Get-FileHash -LiteralPath (Join-Path $destino 'Smart-Notes-v1.4.4-Debug.apk') -Algorithm SHA256).Hash
-          "SHA256: $hash" | Set-Content -LiteralPath (Join-Path $destino 'Smart-Notes-v1.4.4-Debug-SHA256.txt') -Encoding utf8
-          "APK Debug 1.4.4 gerado com sucesso." >> $env:GITHUB_STEP_SUMMARY
+          Copy-Item -LiteralPath $origem -Destination (Join-Path $destino 'Smart-Notes-v1.5.4-Debug.apk') -Force
+          $hash = (Get-FileHash -LiteralPath (Join-Path $destino 'Smart-Notes-v1.5.4-Debug.apk') -Algorithm SHA256).Hash
+          "SHA256: $hash" | Set-Content -LiteralPath (Join-Path $destino 'Smart-Notes-v1.5.4-Debug-SHA256.txt') -Encoding utf8
+          "APK Debug 1.5.4 gerado com sucesso." >> $env:GITHUB_STEP_SUMMARY
 
       - name: Publicar APK Debug
         uses: actions/upload-artifact@v4
         with:
-          name: Smart-Notes-APK-Debug-1.4.4
+          name: Smart-Notes-APK-Debug-1.5.4
           path: APK/
           if-no-files-found: error
           retention-days: 30

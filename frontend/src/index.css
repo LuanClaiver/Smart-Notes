@@ -97,3 +97,8 @@ button:disabled {
 .smart-action-button:disabled {
   opacity: 0.55;
 }
+
+/* Smart Notes toast: mantém os alertas sempre acima de modais e visualizadores. */
+.Toastify__toast-container {
+  z-index: 200000 !important;
+}

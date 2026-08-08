@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 
 function VisualizadorImagem({ imagem, temaEscuro, onFechar }) {
   const [baixando, setBaixando] = useState(false);
+  const [mensagem, setMensagem] = useState("");
 
   useEffect(() => {
+    setMensagem("");
     if (!imagem) return;
 
     function fecharComEsc(event) {
@@ -18,18 +20,31 @@ function VisualizadorImagem({ imagem, temaEscuro, onFechar }) {
 
   async function baixarImagem() {
     setBaixando(true);
+    setMensagem("");
+
     try {
       const resposta = await fetch(imagem.src);
+      if (!resposta.ok) throw new Error("Falha ao carregar a imagem para download.");
+
       const blob = await resposta.blob();
       const extensao = blob.type?.split("/")[1]?.replace("jpeg", "jpg") || "png";
+      const nomeArquivo = `${imagem.nome || "smart-notes-imagem"}.${extensao}`;
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
+
+      // No computador, o navegador grava downloads no diretório Downloads configurado
+      // pelo próprio Windows/navegador. Aplicações web não podem escolher um caminho
+      // absoluto do sistema sem uma confirmação explícita do usuário.
       link.href = url;
-      link.download = `${imagem.nome || "smart-notes-imagem"}.${extensao}`;
+      link.download = nomeArquivo;
+      link.style.display = "none";
       document.body.appendChild(link);
       link.click();
       link.remove();
       setTimeout(() => URL.revokeObjectURL(url), 1500);
+      setMensagem("Imagem enviada para a pasta Downloads configurada no navegador.");
+    } catch (error) {
+      setMensagem("Não foi possível baixar a imagem.");
     } finally {
       setBaixando(false);
     }
@@ -50,6 +65,7 @@ function VisualizadorImagem({ imagem, temaEscuro, onFechar }) {
             <button type="button" onClick={onFechar} className="w-12 h-12 rounded-2xl bg-red-600 hover:bg-red-700 text-white text-xl font-black">✕</button>
           </div>
         </header>
+        {mensagem && <p className="px-4 py-2 text-sm text-center bg-emerald-600/15 text-emerald-400 font-bold">{mensagem}</p>}
         <div className={`flex-1 min-h-0 p-3 md:p-5 flex items-center justify-center ${temaEscuro ? "bg-black/30" : "bg-slate-100"}`}>
           <img src={imagem.src} alt={imagem.alt || "Imagem anexada"} className="max-w-full max-h-full object-contain rounded-2xl" />
         </div>

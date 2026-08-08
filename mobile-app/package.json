@@ -1,7 +1,7 @@
 {
   "name": "smart-notes-mobile",
   "private": true,
-  "version": "1.4.4",
+  "version": "1.5.4",
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",

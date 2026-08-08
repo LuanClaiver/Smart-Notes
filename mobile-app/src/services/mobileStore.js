@@ -144,8 +144,8 @@ async function criarEstadoInicial() {
   }
   return {
     format: "smart-notes-mobile",
-    version: 2,
-    counters: { usuario: 1, nota: 0, categoria: categoriaId, subcategoria: subcategoriaId, observacao: 0 },
+    version: 6,
+    counters: { usuario: 1, nota: 0, categoria: categoriaId, subcategoria: subcategoriaId, observacao: 0, pendencia: 0, pendenciaItem: 0 },
     usuarios: [admin],
     sessoes: [],
     notas: [],
@@ -154,7 +154,9 @@ async function criarEstadoInicial() {
     favoritos: [],
     fixadas: [],
     observacoes: [],
-    acessosPrivados: []
+    acessosPrivados: [],
+    pendencias: [],
+    pendenciaItens: []
   };
 }
 
@@ -162,13 +164,15 @@ function normalizarEstado(estado) {
   const base = estado && typeof estado === "object" ? estado : {};
   return {
     format: "smart-notes-mobile",
-    version: 2,
+    version: 6,
     counters: {
       usuario: Number(base.counters?.usuario || Math.max(0, ...(base.usuarios || []).map((item) => Number(item.id) || 0))),
       nota: Number(base.counters?.nota || Math.max(0, ...(base.notas || []).map((item) => Number(item.id) || 0))),
       categoria: Number(base.counters?.categoria || Math.max(0, ...(base.categorias || []).map((item) => Number(item.id) || 0))),
       subcategoria: Number(base.counters?.subcategoria || Math.max(0, ...(base.subcategorias || []).map((item) => Number(item.id) || 0))),
-      observacao: Number(base.counters?.observacao || Math.max(0, ...(base.observacoes || []).map((item) => Number(item.id) || 0)))
+      observacao: Number(base.counters?.observacao || Math.max(0, ...(base.observacoes || []).map((item) => Number(item.id) || 0))),
+      pendencia: Number(base.counters?.pendencia || Math.max(0, ...(base.pendencias || []).map((item) => Number(item.id) || 0))),
+      pendenciaItem: Number(base.counters?.pendenciaItem || Math.max(0, ...(base.pendenciaItens || []).map((item) => Number(item.id) || 0)))
     },
     usuarios: Array.isArray(base.usuarios) ? base.usuarios.map((item) => ({ ...item, nome: normalizarNomeExibicao(item.nome), usuario: String(item.usuario || "").trim() })) : [],
     sessoes: Array.isArray(base.sessoes) ? base.sessoes : [],
@@ -178,7 +182,23 @@ function normalizarEstado(estado) {
     favoritos: Array.isArray(base.favoritos) ? base.favoritos : [],
     fixadas: Array.isArray(base.fixadas) ? base.fixadas : [],
     observacoes: Array.isArray(base.observacoes) ? base.observacoes : [],
-    acessosPrivados: Array.isArray(base.acessosPrivados) ? base.acessosPrivados : []
+    acessosPrivados: Array.isArray(base.acessosPrivados) ? base.acessosPrivados : [],
+    pendencias: Array.isArray(base.pendencias) ? base.pendencias.map((item) => ({
+      ...item,
+      escopo: item.escopo === "equipe" ? "equipe" : "individual",
+      imagens: Array.isArray(item.imagens) ? item.imagens.filter(Boolean) : []
+    })) : [],
+    pendenciaItens: Array.isArray(base.pendenciaItens)
+      ? base.pendenciaItens.map((item) => ({
+          ...item,
+          concluido: Boolean(item.concluido),
+          concluidoPor: Number.isFinite(Number(item.concluidoPor)) && Number(item.concluidoPor) > 0
+            ? Number(item.concluidoPor)
+            : null,
+          concluidoPorNome: item.concluidoPorNome ? String(item.concluidoPorNome) : null,
+          concluidoEm: item.concluidoEm || null
+        }))
+      : []
   };
 }
 
@@ -204,6 +224,7 @@ async function obterEstado() {
     await gravarChave(STATE_KEY, estado);
   }
   const normalizado = normalizarEstado(JSON.parse(JSON.stringify(estado)));
+  const adminPadrao=normalizado.usuarios.find(u=>String(u.email).toLowerCase()==="admin@smartnotes.com"||String(u.usuario).toLowerCase()==="admin"); if(adminPadrao){adminPadrao.tipoUsuario="admin";adminPadrao.admin=true;adminPadrao.ativo=true;}
   await garantirBackupAutomatico(normalizado);
   return normalizado;
 }
@@ -281,6 +302,7 @@ function normalizarNota(estado, nota, usuario) {
     ...nota,
     autorNome: autor?.nome || "Usuário",
     autorEmail: autor?.email || "",
+    autorFoto: autor?.fotoPerfil || "",
     conteudo: bloqueada ? "Esta nota compartilhada é protegida por senha." : nota.conteudo,
     imagens,
     imagem: imagens[0] || "",
@@ -401,7 +423,7 @@ export async function atualizarPerfilLocal(dados) {
 export async function listarUsuariosLocal() {
   const estado = await obterEstado();
   exigirAdmin(usuarioAtualNoEstado(estado));
-  return resposta(estado.usuarios.map(usuarioPublico).sort((a, b) => a.nome.localeCompare(b.nome)));
+  return resposta(estado.usuarios.map((conta) => ({ ...usuarioPublico(conta), totalNotas: estado.notas.filter((nota) => Number(nota.usuarioId) === Number(conta.id)).length })).sort((a, b) => a.nome.localeCompare(b.nome)));
 }
 
 export async function editarUsuarioLocal(id, dados) {
@@ -421,6 +443,59 @@ export async function editarUsuarioLocal(id, dados) {
     if (usuario.id === admin.id && !dados.ativo) throw apiError("Você não pode desativar seu próprio usuário");
     Object.assign(usuario, { nome, usuario: login, email, tipoUsuario: dados.tipoUsuario === "admin" ? "admin" : "usuario", ativo: Boolean(dados.ativo) });
     return { data: { usuario: usuarioPublico(usuario) } };
+  });
+}
+
+
+
+export async function excluirUsuarioLocal(id, { responsavelId } = {}) {
+  return mutarEstado(async (estado) => {
+    const admin = usuarioAtualNoEstado(estado);
+    exigirAdmin(admin);
+    const usuarioId = Number(id);
+    const destinoId = Number(responsavelId || admin.id);
+
+    if (usuarioId === Number(admin.id)) throw apiError("Você não pode excluir o usuário que está conectado");
+    if (!Number.isInteger(destinoId) || destinoId === usuarioId) throw apiError("Selecione outro usuário ativo para receber as notas");
+
+    const usuario = estado.usuarios.find((item) => Number(item.id) === usuarioId);
+    if (!usuario) throw apiError("Usuário não encontrado", 404);
+    const responsavel = estado.usuarios.find((item) => Number(item.id) === destinoId && item.ativo);
+    if (!responsavel) throw apiError("Responsável não encontrado ou inativo", 404);
+
+    const notasDoUsuario = estado.notas.filter((nota) => Number(nota.usuarioId) === usuarioId);
+    for (const nota of notasDoUsuario) {
+      nota.usuarioId = destinoId;
+      nota.atualizadoEm = agora();
+    }
+
+    estado.usuarios = estado.usuarios.filter((item) => Number(item.id) !== usuarioId);
+    estado.sessoes = estado.sessoes.filter((item) => Number(item.usuarioId) !== usuarioId);
+    estado.favoritos = estado.favoritos.filter((item) => Number(item.usuarioId) !== usuarioId);
+    estado.fixadas = estado.fixadas.filter((item) => Number(item.usuarioId) !== usuarioId);
+    estado.observacoes = estado.observacoes.filter((item) => Number(item.usuarioId) !== usuarioId);
+    estado.acessosPrivados = estado.acessosPrivados.filter((item) => Number(item.usuarioId) !== usuarioId);
+    estado.categorias.forEach((item) => { if (Number(item.criadoPor) === usuarioId) item.criadoPor = null; });
+    estado.subcategorias.forEach((item) => { if (Number(item.criadoPor) === usuarioId) item.criadoPor = null; });
+    estado.pendencias.forEach((item) => {
+      if (Number(item.criadoPor) === usuarioId) item.criadoPor = destinoId;
+      if (Number(item.responsavelId) === usuarioId) item.responsavelId = destinoId;
+    });
+    estado.pendenciaItens.forEach((item) => {
+      if (Number(item.concluidoPor) === usuarioId) {
+        item.concluidoPorNome = item.concluidoPorNome || usuario.nome;
+        item.concluidoPor = null;
+      }
+    });
+
+    return {
+      data: {
+        mensagem: notasDoUsuario.length > 0
+          ? `Usuário excluído. ${notasDoUsuario.length} nota(s) transferida(s) para ${responsavel.nome}.`
+          : "Usuário excluído com sucesso.",
+        notasTransferidas: notasDoUsuario.length
+      }
+    };
   });
 }
 
@@ -556,7 +631,16 @@ export async function editarNotaLocal(id, dados) {
     const senha = String(dados.senhaCompartilhamento || "");
     if (privada && !nota.senhaCompartilhamentoHash && senha.length < 3) throw apiError("Informe uma senha para a nota pública protegida");
     const imagens = validarImagens(dados.imagens || dados.imagem || []);
+    let responsavelId = Number(nota.usuarioId);
+
+    if (usuario.tipoUsuario === "admin" && dados.responsavelId !== undefined) {
+      const responsavel = estado.usuarios.find((item) => Number(item.id) === Number(dados.responsavelId) && item.ativo);
+      if (!responsavel) throw apiError("Selecione um responsável ativo para a nota");
+      responsavelId = Number(responsavel.id);
+    }
+
     Object.assign(nota, {
+      usuarioId: responsavelId,
       titulo,
       conteudo,
       categoria: String(dados.categoria || "Atendimentos"),
@@ -753,6 +837,242 @@ export async function importarBancoLocal(arquivo) {
   localStorage.removeItem("smartNotesToken");
   localStorage.removeItem("smartNotesUsuario");
   return { mensagem: "Banco importado com sucesso.", backupSeguranca: backupAntes, reiniciando: true };
+}
+
+
+function escopoPendenciaLocal(pendencia) {
+  return pendencia?.escopo === "equipe" ? "equipe" : "individual";
+}
+
+function podeEditarPendenciaLocal(pendencia, usuario) {
+  if (escopoPendenciaLocal(pendencia) === "equipe") return true;
+  return usuario.tipoUsuario === "admin"
+    || Number(pendencia.criadoPor) === Number(usuario.id)
+    || Number(pendencia.responsavelId) === Number(usuario.id);
+}
+
+function podeExcluirPendenciaLocal(pendencia, usuario) {
+  if (escopoPendenciaLocal(pendencia) === "equipe") {
+    return usuario.tipoUsuario === "admin" || Number(pendencia.criadoPor) === Number(usuario.id);
+  }
+  return podeEditarPendenciaLocal(pendencia, usuario);
+}
+
+function pendenciaNormalizada(estado, pendencia, usuario) {
+  const itens = estado.pendenciaItens
+    .filter((item) => item.pendenciaId === pendencia.id)
+    .sort((a, b) => a.ordem - b.ordem)
+    .map((item) => {
+      const concluidor = estado.usuarios.find((usuarioItem) => Number(usuarioItem.id) === Number(item.concluidoPor));
+      return {
+        ...item,
+        concluido: Boolean(item.concluido),
+        concluidoPorNome: concluidor?.nome || item.concluidoPorNome || null
+      };
+    });
+  const responsavel = estado.usuarios.find((item) => item.id === pendencia.responsavelId);
+  const autor = estado.usuarios.find((item) => item.id === pendencia.criadoPor);
+  const concluidos = itens.filter((item) => item.concluido).length;
+  const total = itens.length;
+  const escopo = escopoPendenciaLocal(pendencia);
+
+  return {
+    ...pendencia,
+    escopo,
+    imagens: Array.isArray(pendencia.imagens) ? pendencia.imagens : [],
+    itens,
+    responsavelNome: responsavel?.nome || "Usuário",
+    autorNome: autor?.nome || "Usuário",
+    concluidos,
+    total,
+    progresso: total ? Math.round((concluidos * 100) / total) : 0,
+    podeEditar: podeEditarPendenciaLocal({ ...pendencia, escopo }, usuario),
+    podeExcluir: podeExcluirPendenciaLocal({ ...pendencia, escopo }, usuario),
+    podeAlterarEscopo: usuario.tipoUsuario === "admin" || Number(pendencia.criadoPor) === Number(usuario.id)
+  };
+}
+
+export async function listarPendenciasLocal() {
+  const estado = await obterEstado();
+  const usuario = usuarioAtualNoEstado(estado);
+  const lista = estado.pendencias.filter((pendencia) => pendencia.ativo && (
+    usuario.tipoUsuario === "admin"
+    || escopoPendenciaLocal(pendencia) === "equipe"
+    || Number(pendencia.criadoPor) === Number(usuario.id)
+    || Number(pendencia.responsavelId) === Number(usuario.id)
+  ));
+  return resposta(lista.map((pendencia) => pendenciaNormalizada(estado, pendencia, usuario)));
+}
+
+export async function criarPendenciaLocal(dados) {
+  return mutarEstado(async (estado) => {
+    const usuario = usuarioAtualNoEstado(estado);
+    const titulo = String(dados.titulo || "").trim();
+    if (!titulo) throw apiError("Informe o título da pendência");
+    const imagens = validarImagens(dados.imagens || [], 6);
+
+    let responsavelId = usuario.id;
+    if (usuario.tipoUsuario === "admin" && dados.responsavelId) {
+      responsavelId = Number(dados.responsavelId);
+    }
+    const responsavel = estado.usuarios.find((item) => item.id === responsavelId && item.ativo);
+    if (!responsavel) throw apiError("Responsável inválido ou inativo");
+
+    const id = ++estado.counters.pendencia;
+    const instante = agora();
+    const pendencia = {
+      id,
+      titulo,
+      descricao: String(dados.descricao || ""),
+      imagens,
+      status: ["a_fazer", "em_andamento", "concluido"].includes(dados.status) ? dados.status : "a_fazer",
+      escopo: dados.escopo === "equipe" ? "equipe" : "individual",
+      criadoPor: usuario.id,
+      responsavelId,
+      criadoEm: instante,
+      atualizadoEm: instante,
+      ativo: true
+    };
+    estado.pendencias.push(pendencia);
+
+    (Array.isArray(dados.itens) ? dados.itens : []).forEach((item, ordem) => {
+      const texto = String(item.texto || "").trim();
+      if (!texto) return;
+      const concluido = Boolean(item.concluido);
+      estado.pendenciaItens.push({
+        id: ++estado.counters.pendenciaItem,
+        pendenciaId: id,
+        texto,
+        concluido,
+        concluidoPor: concluido ? usuario.id : null,
+        concluidoPorNome: concluido ? usuario.nome : null,
+        concluidoEm: concluido ? instante : null,
+        ordem,
+        criadoEm: instante,
+        atualizadoEm: instante
+      });
+    });
+
+    const itensCriados = estado.pendenciaItens.filter((item) => Number(item.pendenciaId) === Number(id));
+    if (itensCriados.length > 0 && itensCriados.every((item) => Boolean(item.concluido))) {
+      pendencia.status = "concluido";
+    }
+
+    return resposta(pendenciaNormalizada(estado, pendencia, usuario));
+  });
+}
+
+export async function editarPendenciaLocal(id, dados) {
+  return mutarEstado(async (estado) => {
+    const usuario = usuarioAtualNoEstado(estado);
+    const pendencia = estado.pendencias.find((item) => item.id === Number(id) && item.ativo);
+    if (!pendencia) throw apiError("Pendência não encontrada", 404);
+    if (!podeEditarPendenciaLocal(pendencia, usuario)) throw apiError("Sem permissão", 403);
+
+    const titulo = String(dados.titulo ?? pendencia.titulo).trim();
+    if (!titulo) throw apiError("Informe o título da pendência");
+
+    pendencia.titulo = titulo;
+    pendencia.descricao = String(dados.descricao ?? pendencia.descricao);
+    if (dados.imagens !== undefined) {
+      pendencia.imagens = validarImagens(dados.imagens || [], 6);
+    } else if (!Array.isArray(pendencia.imagens)) {
+      pendencia.imagens = [];
+    }
+    if (["a_fazer", "em_andamento", "concluido"].includes(dados.status)) {
+      pendencia.status = dados.status;
+    }
+    if ((usuario.tipoUsuario === "admin" || Number(pendencia.criadoPor) === Number(usuario.id)) && ["individual", "equipe"].includes(dados.escopo)) {
+      pendencia.escopo = dados.escopo;
+    }
+    if (usuario.tipoUsuario === "admin" && dados.responsavelId !== undefined) {
+      const responsavel = estado.usuarios.find((item) => item.id === Number(dados.responsavelId) && item.ativo);
+      if (!responsavel) throw apiError("Responsável inválido");
+      pendencia.responsavelId = responsavel.id;
+    }
+    pendencia.atualizadoEm = agora();
+
+    if (Array.isArray(dados.itens)) {
+      const atuais = estado.pendenciaItens.filter((item) => Number(item.pendenciaId) === Number(pendencia.id));
+      const atuaisPorId = new Map(atuais.map((item) => [Number(item.id), item]));
+      const idsMantidos = new Set();
+
+      dados.itens.forEach((item, ordem) => {
+        const texto = String(item.texto || "").trim();
+        if (!texto) return;
+
+        const idRecebido = Number(item.id);
+        const atual = Number.isInteger(idRecebido) ? atuaisPorId.get(idRecebido) : null;
+        const concluido = Boolean(item.concluido);
+        const instante = agora();
+
+        if (atual) {
+          const estavaConcluido = Boolean(atual.concluido);
+          atual.texto = texto;
+          atual.concluido = concluido;
+          atual.ordem = ordem;
+          atual.atualizadoEm = instante;
+
+          if (!concluido) {
+            atual.concluidoPor = null;
+            atual.concluidoPorNome = null;
+            atual.concluidoEm = null;
+          } else if (!estavaConcluido) {
+            atual.concluidoPor = usuario.id;
+            atual.concluidoPorNome = usuario.nome;
+            atual.concluidoEm = instante;
+          }
+
+          idsMantidos.add(Number(atual.id));
+          return;
+        }
+
+        const novo = {
+          id: ++estado.counters.pendenciaItem,
+          pendenciaId: pendencia.id,
+          texto,
+          concluido,
+          concluidoPor: concluido ? usuario.id : null,
+          concluidoPorNome: concluido ? usuario.nome : null,
+          concluidoEm: concluido ? instante : null,
+          ordem,
+          criadoEm: instante,
+          atualizadoEm: instante
+        };
+        estado.pendenciaItens.push(novo);
+        idsMantidos.add(Number(novo.id));
+      });
+
+      estado.pendenciaItens = estado.pendenciaItens.filter((item) => (
+        Number(item.pendenciaId) !== Number(pendencia.id) || idsMantidos.has(Number(item.id))
+      ));
+
+      const itensAtuais = estado.pendenciaItens.filter((item) => Number(item.pendenciaId) === Number(pendencia.id));
+      if (itensAtuais.length > 0 && itensAtuais.every((item) => Boolean(item.concluido))) {
+        pendencia.status = "concluido";
+      }
+    }
+
+    return resposta(pendenciaNormalizada(estado, pendencia, usuario));
+  });
+}
+
+export async function moverPendenciaLocal(id, status) {
+  return editarPendenciaLocal(id, { status });
+}
+
+export async function excluirPendenciaLocal(id) {
+  return mutarEstado(async (estado) => {
+    const usuario = usuarioAtualNoEstado(estado);
+    const pendencia = estado.pendencias.find((item) => item.id === Number(id) && item.ativo);
+    if (!pendencia) throw apiError("Pendência não encontrada", 404);
+    if (!podeExcluirPendenciaLocal(pendencia, usuario)) {
+      throw apiError("Somente o criador ou um administrador pode excluir esta pendência da equipe", 403);
+    }
+    pendencia.ativo = false;
+    pendencia.atualizadoEm = agora();
+    return resposta({ mensagem: "Pendência excluída" });
+  });
 }
 
 export { apiError };

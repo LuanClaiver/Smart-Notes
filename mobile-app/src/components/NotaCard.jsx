@@ -30,19 +30,24 @@ function NotaCard({
             </div>
           </div>
 
-          <button
-            onClick={(event) => {
-              event.stopPropagation();
-              if (nota.podeFavoritar) {
-                alternarFavorita(nota.id);
-              }
-            }}
-            disabled={!nota.podeFavoritar}
-            title={nota.podeFavoritar ? "Favoritar" : "Desbloqueie para favoritar"}
-            className={`text-2xl transition-all ${nota.podeFavoritar ? "cursor-pointer hover:scale-125 active:scale-90" : "opacity-40 cursor-not-allowed"}`}
-          >
-            {nota.favorita ? "❤️" : "🤍"}
-          </button>
+          <div className="shrink-0 flex flex-col items-center gap-2">
+            <button
+              onClick={(event) => {
+                event.stopPropagation();
+                if (nota.podeFavoritar) alternarFavorita(nota.id);
+              }}
+              disabled={!nota.podeFavoritar}
+              title={nota.podeFavoritar ? "Favoritar" : "Desbloqueie para favoritar"}
+              className={`text-2xl transition-all ${nota.podeFavoritar ? "cursor-pointer hover:scale-125 active:scale-90" : "opacity-40 cursor-not-allowed"}`}
+            >
+              {nota.favorita ? "❤️" : "🤍"}
+            </button>
+            {nota.compartilhada && !nota.minhaNota && (nota.autorFoto ? (
+              <img src={nota.autorFoto} alt={nota.autorNome || "Autor"} title={nota.autorNome || "Autor"} className="w-7 h-7 rounded-full object-cover border-2 border-emerald-500/40 shadow" />
+            ) : (
+              <span title={nota.autorNome || "Autor"} className="w-7 h-7 rounded-full bg-emerald-600 text-white text-xs font-black flex items-center justify-center border-2 border-emerald-500/40">{(nota.autorNome || "U").charAt(0).toUpperCase()}</span>
+            ))}
+          </div>
         </div>
 
         <p className="text-xs text-slate-500 mb-3">

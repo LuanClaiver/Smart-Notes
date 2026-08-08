@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import EditorImagens from "./EditorImagens";
 
 function FormularioNota({
@@ -33,10 +33,6 @@ function FormularioNota({
     return subcategorias.filter((item) => item.categoria === categoria);
   }, [subcategorias, categoria]);
 
-  if (!formularioAberto) {
-    return null;
-  }
-
   function inserirMarcador(marcador) {
     setConteudo(`${conteudo}${conteudo ? "\n" : ""}${marcador} `);
   }
@@ -58,6 +54,48 @@ function FormularioNota({
     if (event.target === event.currentTarget) {
       onFechar?.();
     }
+  }
+
+  useEffect(() => {
+    if (!formularioAberto) return undefined;
+
+    const controlarTeclado = (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onFechar?.();
+        return;
+      }
+
+      if (event.key !== "Enter" || event.shiftKey || event.defaultPrevented) return;
+      const alvo = event.target;
+      const tag = String(alvo?.tagName || "").toLowerCase();
+      const tipo = String(alvo?.type || "").toLowerCase();
+
+      if ((event.ctrlKey || event.metaKey) && tag === "textarea") {
+        event.preventDefault();
+        criarNota?.();
+        return;
+      }
+
+      if (tag === "textarea" || tag === "select" || tag === "button" || alvo?.isContentEditable) return;
+      if (tipo === "checkbox" || tipo === "radio" || tipo === "file") return;
+
+      if (alvo?.dataset?.novaSubcategoria !== undefined) {
+        event.preventDefault();
+        adicionarSubcategoria();
+        return;
+      }
+
+      event.preventDefault();
+      criarNota?.();
+    };
+
+    window.addEventListener("keydown", controlarTeclado);
+    return () => window.removeEventListener("keydown", controlarTeclado);
+  }, [formularioAberto, onFechar, criarNota, novaSubcategoria, categoria]);
+
+  if (!formularioAberto) {
+    return null;
   }
 
   return (
@@ -131,6 +169,7 @@ function FormularioNota({
             <div className="flex gap-2">
               <input
                 value={novaSubcategoria}
+                data-nova-subcategoria="true"
                 onChange={(event) => setNovaSubcategoria(event.target.value)}
                 placeholder="Nova subcategoria"
                 className={`min-w-0 p-4 rounded-2xl border outline-none ${

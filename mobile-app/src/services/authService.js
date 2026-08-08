@@ -3,6 +3,7 @@ import {
   atualizarPerfilLocal,
   cadastroLocal,
   editarUsuarioLocal,
+  excluirUsuarioLocal,
   listarUsuariosLocal,
   loginLocal,
   logoutLocal,
@@ -20,4 +21,7 @@ export const atualizarPerfilService = atualizarPerfilLocal;
 export const listarUsuariosAdminService = listarUsuariosLocal;
 export const editarUsuarioAdminService = editarUsuarioLocal;
 export const alterarSenhaUsuarioAdminService = alterarSenhaUsuarioLocal;
+export const excluirUsuarioAdminService = excluirUsuarioLocal;
 export const logoutService = logoutLocal;
+
+export const listarUsuariosService = listarUsuariosLocal;

@@ -1,4 +1,13 @@
-function EditorImagens({ imagens, setImagens, temaEscuro }) {
+function EditorImagens({
+  imagens = [],
+  setImagens,
+  temaEscuro,
+  titulo = "Imagens dentro da nota",
+  descricao = "Adicione até 6 imagens para complementar o conteúdo da anotação.",
+  textoVazio = "Nenhuma imagem adicionada nesta nota.",
+  maxImagens = 6,
+  onAbrirImagem
+}) {
   async function arquivoParaBase64(arquivo) {
     return new Promise((resolve, reject) => {
       const leitor = new FileReader();
@@ -24,7 +33,7 @@ function EditorImagens({ imagens, setImagens, temaEscuro }) {
 
     try {
       const novasImagens = await Promise.all(imagensValidas.map(arquivoParaBase64));
-      const total = [...imagens, ...novasImagens].slice(0, 6);
+      const total = [...imagens, ...novasImagens].slice(0, maxImagens);
       setImagens(total);
       event.target.value = "";
     } catch (error) {
@@ -46,10 +55,8 @@ function EditorImagens({ imagens, setImagens, temaEscuro }) {
     >
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         <div>
-          <label className="block text-sm font-black">Imagens dentro da nota</label>
-          <p className="text-xs text-slate-400 mt-1">
-            Adicione até 6 imagens para complementar o conteúdo da anotação.
-          </p>
+          <label className="block text-sm font-black">{titulo}</label>
+          <p className="text-xs text-slate-400 mt-1">{descricao}</p>
         </div>
 
         <label className="inline-flex justify-center items-center px-4 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black cursor-pointer transition-all shadow-lg shadow-emerald-600/20">
@@ -68,11 +75,22 @@ function EditorImagens({ imagens, setImagens, temaEscuro }) {
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {imagens.map((imagem, indice) => (
             <div key={`${imagem.slice(0, 30)}-${indice}`} className="relative group">
-              <img
-                src={imagem}
-                alt={`Imagem ${indice + 1}`}
-                className="w-full h-32 object-cover rounded-2xl border border-emerald-500/30"
-              />
+              <button
+                type="button"
+                onClick={() => onAbrirImagem?.({
+                  src: imagem,
+                  nome: `smart-notes-imagem-${indice + 1}`,
+                  alt: `${titulo} ${indice + 1}`
+                })}
+                className="block w-full text-left"
+                title={onAbrirImagem ? "Abrir imagem" : undefined}
+              >
+                <img
+                  src={imagem}
+                  alt={`${titulo} ${indice + 1}`}
+                  className={`w-full h-32 object-cover rounded-2xl border border-emerald-500/30 ${onAbrirImagem ? "cursor-zoom-in" : ""}`}
+                />
+              </button>
 
               <button
                 type="button"
@@ -92,7 +110,7 @@ function EditorImagens({ imagens, setImagens, temaEscuro }) {
               : "border-slate-300 text-slate-500"
           }`}
         >
-          Nenhuma imagem adicionada nesta nota.
+          {textoVazio}
         </div>
       )}
     </div>

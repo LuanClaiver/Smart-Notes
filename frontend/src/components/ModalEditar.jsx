@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import EditorImagens from "./EditorImagens";
+import { listarUsuariosAdminService } from "../services/authService";
 
 function ModalEditar({
   aberto,
@@ -21,6 +22,10 @@ function ModalEditar({
   const [senhaCompartilhamento, setSenhaCompartilhamento] = useState("");
   const [novaSubcategoria, setNovaSubcategoria] = useState("");
   const [imagens, setImagens] = useState([]);
+  const [responsavelId, setResponsavelId] = useState("");
+  const [usuariosResponsaveis, setUsuariosResponsaveis] = useState([]);
+  const [carregandoResponsaveis, setCarregandoResponsaveis] = useState(false);
+  const [erroResponsaveis, setErroResponsaveis] = useState("");
 
   useEffect(() => {
     if (nota) {
@@ -32,8 +37,40 @@ function ModalEditar({
       setCompartilhamentoPrivado(Boolean(nota.compartilhamentoPrivado));
       setSenhaCompartilhamento("");
       setImagens(Array.isArray(nota.imagens) ? nota.imagens : nota.imagem ? [nota.imagem] : []);
+      setResponsavelId(String(nota.usuarioId || ""));
     }
   }, [nota]);
+
+  useEffect(() => {
+    let ativo = true;
+
+    async function carregarResponsaveis() {
+      if (!aberto || !usuario?.admin || !nota) {
+        setUsuariosResponsaveis([]);
+        setErroResponsaveis("");
+        return;
+      }
+
+      setCarregandoResponsaveis(true);
+      setErroResponsaveis("");
+
+      try {
+        const resposta = await listarUsuariosAdminService();
+        if (!ativo) return;
+        const lista = (resposta.data || []).filter((item) => item.ativo || Number(item.id) === Number(nota.usuarioId));
+        setUsuariosResponsaveis(lista);
+      } catch (error) {
+        if (!ativo) return;
+        setErroResponsaveis(error.response?.data?.erro || "Não foi possível carregar os responsáveis.");
+        setUsuariosResponsaveis([{ id: nota.usuarioId, nome: nota.autorNome, usuario: nota.autorEmail, ativo: true }]);
+      } finally {
+        if (ativo) setCarregandoResponsaveis(false);
+      }
+    }
+
+    carregarResponsaveis();
+    return () => { ativo = false; };
+  }, [aberto, usuario?.admin, nota]);
 
   const subcategoriasDaCategoria = useMemo(() => {
     return subcategorias.filter((item) => item.categoria === categoria);
@@ -75,6 +112,26 @@ function ModalEditar({
           </div>
           <button onClick={onFechar} className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-2xl font-black transition-all">✕</button>
         </div>
+
+        {usuario?.admin && (
+          <div className={`mb-4 rounded-2xl border p-4 ${temaEscuro ? "bg-emerald-950/20 border-emerald-500/25" : "bg-emerald-50 border-emerald-200"}`}>
+            <label className="grid gap-2 font-black">
+              Responsável pela nota
+              <select
+                value={responsavelId}
+                onChange={(event) => setResponsavelId(event.target.value)}
+                disabled={carregandoResponsaveis}
+                className={`p-4 rounded-2xl border outline-none font-medium ${temaEscuro ? "bg-slate-900 border-slate-700" : "bg-white border-slate-200"}`}
+              >
+                {usuariosResponsaveis.map((item) => (
+                  <option key={item.id} value={item.id}>{item.nome} (@{item.usuario || item.email})</option>
+                ))}
+              </select>
+            </label>
+            <p className="text-xs text-slate-400 mt-2">Ao trocar o responsável, a nota passa a aparecer em “Minhas notas” da conta escolhida.</p>
+            {erroResponsaveis && <p className="text-sm text-red-400 font-bold mt-2">{erroResponsaveis}</p>}
+          </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <input
@@ -175,7 +232,8 @@ function ModalEditar({
               compartilhada,
               compartilhamentoPrivado,
               senhaCompartilhamento,
-              imagens
+              imagens,
+              responsavelId: usuario?.admin ? Number(responsavelId) : undefined
             })}
             className="px-5 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black transition-all"
           >

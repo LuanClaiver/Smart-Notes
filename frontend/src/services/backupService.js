@@ -62,6 +62,37 @@ function baixarBlob(blob, nome) {
   }
 }
 
+
+function aguardar(ms) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+export async function aguardarReinicioServidorService() {
+  // O backend encerra a instância atual, aplica o banco pendente e sobe novamente.
+  // O atraso inicial evita confundir a instância antiga com a nova.
+  await aguardar(1400);
+
+  for (let tentativa = 0; tentativa < 80; tentativa += 1) {
+    try {
+      const resposta = await fetch(`${API_URL}/status?ts=${Date.now()}`, {
+        method: "GET",
+        cache: "no-store"
+      });
+
+      if (resposta.ok) {
+        const dados = await resposta.json();
+        if (dados?.online) return true;
+      }
+    } catch {
+      // Durante a substituição do banco é esperado que o servidor fique indisponível.
+    }
+
+    await aguardar(500);
+  }
+
+  throw new Error("O banco foi recebido, mas o servidor não reiniciou. Feche o Smart Notes, abra novamente pelo BAT e tente entrar.");
+}
+
 export async function listarBackupsService() {
   const resposta = await fetch(`${API_URL}/backups`, { headers: headers(), cache: "no-store" });
   if (!resposta.ok) throw new Error(await lerErro(resposta, "Não foi possível listar os backups"));
